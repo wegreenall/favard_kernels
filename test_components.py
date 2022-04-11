@@ -20,14 +20,15 @@ def test_function(x: torch.Tensor):
     """
     A function to learn from a regression using Gaussian Proculoids
     """
-    return 10 * torch.exp(-(x ** 2) / 1)
+    return 10 * torch.exp(-(x ** 2))  # + x
 
 
+torch.manual_seed(9)
 # plotting parameters
-end_point = 8
-fineness = 200
+end_point = 6
+fineness = 400
 # start
-coeffic = 1
+coeffic = 2
 order = 8
 betas = 0 * torch.ones(2 * order + 1)
 gammas = coeffic * torch.ones(2 * order + 1)
@@ -39,10 +40,10 @@ orthonormalpoly = OrthonormalPolynomial(order, betas, gammas)
 params = None
 
 # plotting flags:
-plot_orthopoly = True
-plot_basis = True
-plot_weights = True
-plot_orthobasis = True
+plot_orthopoly = False
+plot_basis = False
+plot_weights = False
+plot_orthobasis = False
 plot_trained_orthobasis = True
 """
 OrthogonalPolynomial
@@ -79,9 +80,7 @@ OrthonormalBasis:
     Constructs a basis that also includes a weight function...
 """
 # weight_function = MaximalEntropyDensity(order, betas, gammas)
-orthobasis = OrthonormalBasis(
-    orthonormalpoly, weight_function, 1, order, params
-)
+orthobasis = OrthonormalBasis(orthopoly, weight_function, 1, order, params)
 orthobasis_vals = orthobasis(x).detach()
 if plot_orthobasis:
     plt.plot(x, orthobasis_vals)
@@ -105,15 +104,13 @@ parameters = {
 Likelihood:
     Test that the likelihood is behaving reasonably
 """
-optimiser = torch.optim.Adam([value for value in parameters.values()], lr=1)
+optimiser = torch.optim.Adam([value for value in parameters.values()], lr=0.1)
 sample_size = 200
 input_sample = D.Normal(0.0, 1.0).sample([sample_size])
 output_sample = test_function(input_sample) + D.Normal(
     0.0, noise_parameter.squeeze()
 ).sample([sample_size])
-likelihood = MercerLikelihood(
-    order, optimiser, orthobasis, input_sample, output_sample
-)
+likelihood = MercerLikelihood(order, optimiser, orthobasis, input_sample, output_sample)
 
 print(parameters)
 # likelihood parameters
@@ -123,12 +120,10 @@ final_gammas = gammas.detach()
 final_gammas[0] = 1.0
 final_betas = torch.zeros(2 * order + 1)
 # breakpoint()
-final_orthopoly = OrthogonalPolynomial(
-    order, final_betas[:order], final_gammas[:order]
-)
+final_orthopoly = OrthogonalPolynomial(order, final_betas[:order], final_gammas[:order])
 
 final_orthonormally = OrthonormalPolynomial(
-    order, final_betas[:order], final_gammas[:order]
+    order, final_betas[: order + 1], final_gammas[: order + 1]
 )
 # breakpoint()
 final_weight_function = MaximalEntropyDensity(order, final_betas, final_gammas)
