@@ -1,6 +1,6 @@
 import torch
 import torch.distributions as D
-from mercergp.builders import gaussian_kernel_mercer_gp
+from mercergp.builders import build_mercer_gp
 from mercergp.likelihood import MercerLikelihood
 import matplotlib.pyplot as plt
 from ortho.basis_functions import OrthonormalBasis
@@ -93,7 +93,9 @@ parameters = {
     "eigenvalue_scale_parameter": eigenvalue_scale_parameter,
     "shape_parameter": shape_parameter,
 }
-optimiser = torch.optim.Adam([value for value in parameters.values()], lr=0.001)
+optimiser = torch.optim.Adam(
+    [value for value in parameters.values()], lr=0.001
+)
 # optimiser = torch.optim.SGD([value for value in parameters.values()], lr=0.005)
 # optimiser = torch.optim.SGD([value for value in parameters.values()], lr=0.25)
 orthopoly = SymmetricOrthonormalPolynomial(order, gammas)
@@ -106,7 +108,9 @@ eigenvalue_smoothness_parameter.requires_grad = False
 eigenvalue_scale_parameter.requires_grad = False
 shape_parameter.requires_grad = False
 
-likelihood = MercerLikelihood(order, optimiser, orthobasis, input_sample, output_sample)
+likelihood = MercerLikelihood(
+    order, optimiser, orthobasis, input_sample, output_sample
+)
 
 # plotting
 fineness = 400

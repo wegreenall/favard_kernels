@@ -1,6 +1,6 @@
 import torch
 import torch.distributions as D
-from mercergp.builders import gaussian_kernel_mercer_gp
+from mercergp.builders import build_mercer_gp
 from mercergp.likelihood import MercerLikelihood
 import matplotlib.pyplot as plt
 from ortho.basis_functions import OrthonormalBasis
@@ -33,7 +33,7 @@ order = 8
 ard_parameter = torch.Tensor([1.0])
 precision_parameter = torch.Tensor([1.0])
 noise_parameter = torch.Tensor([1.0])
-mercer_gp = gaussian_kernel_mercer_gp(
+mercer_gp = build_mercer_gp(
     ard_parameter, precision_parameter, noise_parameter, order, dim
 )
 
@@ -45,7 +45,9 @@ dist = torch.distributions.Normal(loc=0, scale=epsilon)
 epsilon = torch.Tensor([1])
 inputs = dist.sample([sample_size]).squeeze()
 # breakpoint()
-data_points = data_func(inputs) + torch.distributions.Normal(0, 1).sample(inputs.shape)
+data_points = data_func(inputs) + torch.distributions.Normal(0, 1).sample(
+    inputs.shape
+)
 
 mercer_gp.add_data(inputs, data_points)
 mercer_gp_mean = mercer_gp.get_posterior_mean()

@@ -3,9 +3,15 @@ from ortho.orthopoly import OrthonormalPolynomial
 from ortho.measure import MaximalEntropyDensity
 from ortho.basis_functions import OrthonormalBasis
 from mercergp.MGP import MercerKernel, MercerGP
+import matplotlib.pyplot as plt
 
 
-def build_favard_gp(parameters: dict, order: int):
+def build_favard_gp(
+    parameters: dict,
+    order: int,
+    input_sample: torch.Tensor,
+    output_sample: torch.Tensor,
+) -> MercerGP:
     """
     Returns a Mercer GP, given the training of a likelihood.
 
@@ -13,7 +19,7 @@ def build_favard_gp(parameters: dict, order: int):
                       Mercer Likelihood
     """
     gammas = parameters["gammas"].detach().clone()
-    noise_parameters = parameters["noise_parameter"].detach().clone()
+    noise_parameter = parameters["noise_parameter"].detach().clone()
     eigenvalue_smoothness_parameter = (
         parameters["eigenvalue_smoothness_parameter"].detach().clone()
     )
@@ -31,11 +37,17 @@ def build_favard_gp(parameters: dict, order: int):
         final_orthopoly, final_weight_function, 1, order
     )
 
+    # breakpoint()
     eigenvalues = (
         eigenvalue_scale_parameter
         / (torch.linspace(1, order, order) + shape_parameter)
         ** eigenvalue_smoothness_parameter
-    )
-    kernel_params = {"noise_parameter": parameters["noise_parameter"]}
+    ).detach()
+    print("Eigenvalues:", eigenvalues)
+    plt.plot(eigenvalues[:-2])
+    plt.show()
+    kernel_params = {"noise_parameter": noise_parameter}
     kernel = MercerKernel(order, final_basis, eigenvalues, kernel_params)
-    return MercerGP(final_basis, order, 1, kernel)
+    favard_gp = MercerGP(final_basis, order, 1, kernel)
+    favard_gp.add_data(input_sample, output_sample)
+    return favard_gp
