@@ -51,19 +51,41 @@ catalan_numbers = np.array(
     ]
 )
 
-order = 10
-moments = catalan_numbers[:order]
-true_moment_matrix = torch.unfold(0, catalan_numbers[: 2 * order], 1)
-true_moment_matrix_inverse = torch.inverse(true_moment_matrix)
 
-# def get_moments
+order = 10
+moments = catalan_numbers[1 : order + 1]
+true_moment_matrix = torch.Tensor(catalan_numbers[1 : 2 * order + 1]).unfold(
+    0, order, 1
+)[1:, :]
+ratios_matrix = np.einsum(
+    "i, j -> ij",
+    1 / np.linspace(2, order + 1, order),
+    np.linspace(1, order, order),
+)
+# true_moment_matrix_inverse = torch.inverse(true_moment_matrix * ratios_matrix).numpy()
+# breakpoint()
+true_moment_matrix_inverse = torch.inverse(true_moment_matrix * ratios_matrix).numpy()
+scale_parameter = 4
+le2 = np.zeros(order)
+le2[1] = scale_parameter
+
 
 def constraint_function(candidate_moments):
     first_moments = torch.Tensor(candidate_moments)  # tensor version of moments
-    true_moments = catalan_numbers[order : 2 * order]  # true moments
-    moment_matrix = torch.unfold(0, torch.cat((first_moments, true_moments)), 1)
-    moment_matrix_inverse = 
-    return
+    # print(first_moments)
+    true_moments = catalan_numbers[order + 1 : 2 * order + 1]  # true moments
+    full_moments = torch.cat((first_moments, torch.Tensor(true_moments)))
+    moment_matrix = full_moments.unfold(0, order, 1)[1:, :].numpy()
+    # breakpoint()
+    moment_matrix_inverse = np.linalg.inv(
+        moment_matrix * ratios_matrix
+    )  # the variable inverse_matrix
+    return (
+        moment_matrix_inverse @ candidate_moments
+        - true_moment_matrix_inverse @ moments
+        + le2
+    )
+    # return np.zeros(order)
 
 
 def objective(candidate_moments, *args):
@@ -71,7 +93,16 @@ def objective(candidate_moments, *args):
     return scipy.linalg.norm(candidate_moments - moments, 2)
 
 
-result = optimize.minimize(objective, moments + np.ones(order), (moments,))
-constraint = scipy.optimiser.NonLinearConstraint(constraint_function, 0, 0)
+constraint = optimize.NonlinearConstraint(
+    constraint_function, np.zeros(order), np.zeros(order)
+)
+result = optimize.minimize(
+    objective,
+    moments,
+    (moments,),
+    constraints=(constraint),
+    method="trust-constr",
+)
 
-print(result)
+print("calculated_moments", result["x"])
+print("True moments:", moments)
