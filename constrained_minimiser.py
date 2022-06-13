@@ -64,14 +64,18 @@ ratios_matrix = np.einsum(
 )
 # true_moment_matrix_inverse = torch.inverse(true_moment_matrix * ratios_matrix).numpy()
 # breakpoint()
-true_moment_matrix_inverse = torch.inverse(true_moment_matrix * ratios_matrix).numpy()
-scale_parameter = 4
+true_moment_matrix_inverse = torch.inverse(
+    true_moment_matrix * ratios_matrix
+).numpy()
+scale_parameter = 1
 le2 = np.zeros(order)
 le2[1] = scale_parameter
 
 
 def constraint_function(candidate_moments):
-    first_moments = torch.Tensor(candidate_moments)  # tensor version of moments
+    first_moments = torch.Tensor(
+        candidate_moments
+    )  # tensor version of moments
     # print(first_moments)
     true_moments = catalan_numbers[order + 1 : 2 * order + 1]  # true moments
     full_moments = torch.cat((first_moments, torch.Tensor(true_moments)))
@@ -106,3 +110,4 @@ result = optimize.minimize(
 
 print("calculated_moments", result["x"])
 print("True moments:", moments)
+print(np.linalg.norm(result["x"] - moments))
