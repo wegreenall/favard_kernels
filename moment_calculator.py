@@ -186,7 +186,9 @@ def get_close_moments(
     iterations = 0
     while not lagmul_converged:
         mus_optimiser = torch.optim.SGD([mus], lr=0.5)
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(mus_optimiser, gamma=0.5)
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(
+            mus_optimiser, gamma=0.5
+        )
         mus_iterations = 0
         while not mus_converged and (mus_iterations < 200000):
             mus_iterations += 1
