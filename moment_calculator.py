@@ -4,7 +4,6 @@ import torch.distributions as D
 from termcolor import colored
 
 torch.set_printoptions(linewidth=200, precision=20)
-
 """
 This program will be used to test and initially implement the mechanism by which
 we choose the moments for the orthonormal basis.
