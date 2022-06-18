@@ -70,6 +70,39 @@ def jordan_matrix(s, t):
     return matrix[:, :].t()
 
 
+def jordan_matrix_fixed(s, t):
+    """
+    Generates the Jordan matrix from which weight views will be constructed.
+    In most of the examples, s is β, t is γ.
+    """
+    order = len(s)
+    ones = torch.ones(order)
+    zeros = torch.zeros(order)
+    matrix = torch.zeros((order + 1, order + 1))
+    block = torch.vstack((torch.ones(order), s, t)).t()
+    matrix[-2, order] = 1.0
+    matrix[-1, order] = s[0]
+    for i in range(order - 2, -1, -1):
+        print(matrix)
+        if i == order - 2:
+            matrix[i : i + 3, i + 1] = torch.tensor(
+                [ones[order - i - 2], s[order - i - 2], t[order - i - 2]]
+            )
+        elif i < order - 2:
+            # print("Aboutt obuild the penultimate column!")
+            # breakpoint()
+            matrix[i : i + 3, i + 1] = torch.tensor(
+                [ones[order - i - 2], s[order - i - 2], t[order - i - 2]]
+            )
+            # print("matrix after edit", order - i),
+            # print(matrix)
+
+    # print("JORDAN MATRIX FIXED:")
+    # print(colored(matrix[:, 1:], "red"))
+    # breakpoint()
+    return matrix[:, 1:]
+
+
 class CatNet(nn.Module):
     """
     A Catalan matrix represented as a Neural net, to allow
@@ -86,8 +119,8 @@ class CatNet(nn.Module):
             )
         self.order = order
         # self.mask, self.ones_matrix = weight_mask(2 * order)
-        self.jordan = jordan_matrix(betas, gammas)  # .t()
-        self.mask_matrix = jordan_matrix(
+        self.jordan = jordan_matrix_fixed(betas, gammas)  # .t()
+        self.mask_matrix = jordan_matrix_fixed(
             torch.ones(2 * order), torch.ones(2 * order)
         )
         # self.mask_matrix[:, 0] = torch.zeros(2 * order)
@@ -97,14 +130,17 @@ class CatNet(nn.Module):
         print("\n")
         self.layers = []
 
-        for i in range(1, 2 * order + 1):
-            layer = nn.Linear(i, i + 1, bias=False)
-            breakpoint()
-            layer.weight = torch.nn.Parameter(
-                self.jordan[: i + 1, :i].view(-1, i)
+        # for i in range(1, 2 * order + 1):
+        for i in range(2 * order, 0, -1):
+            layer = nn.Linear(2 * order - i + 1, 2 * order - i + 2, bias=False)
+            this_jordan = self.jordan[i - 1 :, i - 1 :]
+            these_weights = torch.nn.Parameter(
+                this_jordan.view(-1, 2 * order - i + 1)
             )
-            print("This layer", layer)
-            print("This layer weight:", layer.weight)
+            layer.weight = these_weights
+            # print("This layer", layer)
+            # print("This layer weight:", layer.weight)
+            # breakpoint()
             self.layers.append(layer)
         return
 
@@ -146,18 +182,19 @@ class CatNet(nn.Module):
 
 if __name__ == "__main__":
     order = 6
-    opt_norm = True
-    opt_symmetric = True
+    opt_norm = False
+    opt_symmetric = False
     # betas = torch.zeros(2 * order)
     betas = torch.zeros(2 * order)
-    gammas = torch.linspace(1, 2 * order, 2 * order) / 2  # 2 * order)
+    gammas = torch.ones(2 * order)
+    # gammas = torch.linspace(1, 2 * order, 2 * order) / 2  # 2 * order)
     betas.requires_grad = True
     gammas.requires_grad = True
     cat_net = CatNet(order, betas, gammas)
     value = cat_net(torch.Tensor([1.0]))
     print(colored("Given initial betas", "blue"), colored(betas, "yellow"))
     print(colored("Given initial gammas", "blue"), colored(gammas, "yellow"))
-    print("True moments for given initial betas:", value)
+    print("Calculated moments for given initial betas:", value)
     breakpoint()
 
     initial_jordan = jordan_matrix(betas, gammas)
@@ -202,15 +239,15 @@ if __name__ == "__main__":
         params_list.extend(layer_params)
 
     if opt_norm:
-        # optimiser = torch.optim.Adam(params_list, lr=0.000005)
+        optimiser = torch.optim.Adam(params_list, lr=0.000005)
         # optimiser = torch.optim.Adamax(params_list, lr=0.00005)
 
-        optimiser = torch.optim.SGD(params_list, lr=0.00005)
+        # optimiser = torch.optim.SGD(params_list, lr=0.00005)
     else:
         # optimiser = torch.optim.Adamax(params_list, lr=0.00005)
-        # optimiser = torch.optim.Adam(params_list, lr=0.00005)
+        optimiser = torch.optim.Adam(params_list, lr=0.00005)
 
-        optimiser = torch.optim.SGD(params_list, lr=0.00005)
+        # optimiser = torch.optim.SGD(params_list, lr=0.00005)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimiser, gamma=0.99)
 
     iterations = 0
@@ -220,7 +257,7 @@ if __name__ == "__main__":
         start_moments = cat_net(torch.Tensor([1.0]))
         if opt_norm:
             # breakpoint()
-            loss = torch.norm(true_moments - start_moments, 3)
+            loss = torch.norm(true_moments - start_moments, 2)
             loss.backward()
         else:
             # breakpoint()
