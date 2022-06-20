@@ -24,7 +24,7 @@ G is not. We aim to test whether it is feasible to use optimisation techniques
 that would not have been easy to implement at that time to improve on errors.
 """
 
-torch.manual_seed(1)
+# torch.manual_seed(1)
 
 
 def weight_mask(order) -> (torch.Tensor, torch.Tensor):
@@ -51,32 +51,12 @@ def weight_mask(order) -> (torch.Tensor, torch.Tensor):
 
 def jordan_matrix(s, t):
     """
-    Generates the Jordan matrix from which weight views will be constructed.
+    Generates the full weight matrix from which weight views will be constructed.
     In most of the examples, s is β, t is γ.
-    """
-    order = len(s)
-    ones = torch.ones(order)
-    zeros = torch.zeros(order)
-    matrix = torch.zeros((order + 1, order))
-    block = torch.vstack((torch.ones(order), s, t)).t()
-    for i in range(order + 1):
-        if i < order - 2:
-            matrix[i, i : i + 3] = torch.tensor([ones[i], s[i], t[i]])
-        elif i < order - 1:
-            matrix[i, i : i + 2] = torch.tensor([ones[i], s[i]])
-        elif i < order:
-            matrix[i, i] = torch.tensor([ones[i]])
-    # for i
-    print("JORDAN MATRIX:")
-    print(colored(matrix.t(), "red"))
-    # breakpoint()
-    return matrix[:, :].t()
 
-
-def jordan_matrix_fixed(s, t):
-    """
-    Generates the Jordan matrix from which weight views will be constructed.
-    In most of the examples, s is β, t is γ.
+    The Favard recursion, as shown by Aigner (2006), can be constructed as a
+    triangular matrix-like operator. The calculation of the elements of the
+    matrix, can be
     """
     order = len(s)
     ones = torch.ones(order)
@@ -86,23 +66,14 @@ def jordan_matrix_fixed(s, t):
     matrix[-2, order] = 1.0
     matrix[-1, order] = s[0]
     for i in range(order - 2, -1, -1):
-        print(matrix)
         if i == order - 2:
             matrix[i : i + 3, i + 1] = torch.tensor(
                 [ones[order - i - 2], s[order - i - 1], t[order - i - 2]]
             )
         elif i < order - 2:
-            # print("Aboutt obuild the penultimate column!")
-            # breakpoint()
             matrix[i : i + 3, i + 1] = torch.tensor(
                 [ones[order - i - 2], s[order - i - 1], t[order - i - 2]]
             )
-            # print("matrix after edit", order - i),
-            # print(matrix)
-
-    # print("JORDAN MATRIX FIXED:")
-    # print(colored(matrix[:, 1:], "red"))
-    # breakpoint()
     return matrix[:, 1:]
 
 
@@ -126,8 +97,8 @@ class CatNet(nn.Module):
             )
         self.order = order
         # self.mask, self.ones_matrix = weight_mask(2 * order)
-        self.jordan = jordan_matrix_fixed(betas, gammas)  # .t()
-        self.mask_matrix = jordan_matrix_fixed(
+        self.jordan = jordan_matrix(betas, gammas)  # .t()
+        self.mask_matrix = jordan_matrix(
             torch.ones(2 * order), torch.ones(2 * order)
         )
         # self.mask_matrix[:, 0] = torch.zeros(2 * order)
