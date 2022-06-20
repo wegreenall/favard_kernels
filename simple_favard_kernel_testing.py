@@ -5,6 +5,7 @@ import mercergp.builders as mgp_builders
 
 import ortho.basis_functions as bf
 import ortho.builders as ortho_builders
+from ortho.orthopoly import OrthonormalPolynomial
 import torch
 import torch.distributions as D
 
@@ -14,14 +15,40 @@ approach. The aim is to present a clear case where the effect of the input
 measure is taken into account. 
 It also provides a clear example of how to construct a model with our technique.
 """
+torch.manual_seed(1)
+
+
+class HardWiredKernel:
+    def __init__(
+        self,
+        order,
+        basis: bf.Basis,
+        eigenvalues: torch.Tensor,
+        kernel_args: dict,
+    ):
+        self.order = order
+        self.basis = basis
+        self.eigenvalues = eigenvalues
+        self.kernel_args = kernel_args
+        return
+
+    def __call__(self, input, test):
+        basis_eval_input = self.basis(input)
+        basis_eval_test = self.basis(test.squeeze())
+        return torch.einsum(
+            "ij,j,kj -> ki",
+            basis_eval_input,
+            self.eigenvalues,
+            basis_eval_test,
+        )
 
 
 def weight_function(x: torch.Tensor) -> torch.Tensor:
     """
     Evaluates the weight function. Usually, e^{-lx^2}
     """
-    length = torch.tensor(6.0)
-    return torch.exp(-length * x ** 2)
+    length = torch.tensor(1.0)
+    return torch.exp(-length * (x ** 2))
 
 
 def test_function(x: torch.Tensor) -> torch.Tensor:
@@ -32,15 +59,15 @@ def test_function(x: torch.Tensor) -> torch.Tensor:
 
 
 # sample parameters
-order = 8
+order = 18
 normalise = True
 sample_size = 500
 sample_shape = torch.Size((sample_size,))
 noise_parameter = torch.Tensor([0.5])
 noise_sample = D.Normal(0.0, noise_parameter).sample(sample_shape).squeeze()
-prior_ard_parameter = torch.Tensor([6.0])
+prior_ard_parameter = torch.Tensor([0.5])
 prior_precision_parameter = torch.Tensor(
-    [1.0]
+    [0.5]
 )  # the prior here is correct. Remedy this if relevant
 
 # control model setup
@@ -69,18 +96,20 @@ control_mgp = mgp_builders.build_mercer_gp(
 
 
 # favard model setup - gamma input distribution
-favard_alpha = torch.Tensor([5.0])
-favard_beta = torch.Tensor([0.5])
+favard_alpha = torch.Tensor([3.0])
+favard_beta = torch.Tensor([3.0])
 favard_input_measure = D.Gamma(favard_alpha, favard_beta)
 if not normalise:
     favard_input_sample = favard_input_measure.sample(sample_shape).squeeze()
 else:
     favard_input_sample = (
-        (favard_input_measure.sample(sample_shape).squeeze())
-        - favard_alpha / favard_beta
-    ) / (
-        favard_alpha / favard_beta ** 2
-    )  # * 20
+        (
+            (favard_input_measure.sample(sample_shape).squeeze())
+            - favard_alpha / favard_beta
+        )
+        / (favard_alpha / (favard_beta ** 2))
+        # * 20
+    )
 
 favard_output_sample = test_function(control_input_sample) + noise_sample
 
@@ -96,6 +125,7 @@ moments = ortho_builders.get_moments_from_sample(
 plt.hist(favard_input_sample.numpy().flatten(), bins=60)
 plt.show()
 betas, gammas = ortho_builders.get_gammas_betas_from_moments(moments, order)
+poly = OrthonormalPolynomial(order, betas, gammas)
 favard_basis = ortho_builders.get_orthonormal_basis(
     betas, gammas, order, weight_function
 )
@@ -108,40 +138,25 @@ kernel_params = {
 }
 eigenvalues = bf.smooth_exponential_eigenvalues_fasshauer(order, kernel_params)
 kernel = mgp.MercerKernel(order, favard_basis, eigenvalues, kernel_params)
+test_kernel = HardWiredKernel(order, favard_basis, eigenvalues, kernel_params)
 
 # favard model prior mercer gaussian process
-favard_mgp = mgp_builders.build_mercer_gp(
-    favard_basis,
-    prior_ard_parameter,
-    prior_precision_parameter,
-    noise_parameter,
-    order,
-    1,
-)
 
 # plotting x_axis
-x_axis = torch.linspace(-4, 4, 1000)
+x_axis = torch.linspace(-6, 6, 1000)
 
 # plot the built kernel
 kernel_values = kernel(torch.Tensor([0.0]), x_axis.unsqueeze(1))
-breakpoint()
+test_kernel_values = test_kernel(torch.Tensor([0.0]), x_axis.unsqueeze(1))
+# breakpoint()
 plt.plot(x_axis, kernel_values.squeeze())
+# plt.plot(x_axis, test_kernel_values)
 plt.show()
 
-# prior samples
-for i in range(5):
-    # breakpoint()
-    control_gp_sample = control_mgp.gen_gp()
-    plt.plot(x_axis, control_gp_sample(x_axis))
-    # plt.plot(x_axis, favard_gp_sample(x_axis), ls="dashed")
+# plot the basis functions...
+# breakpoint()
+# for i in range(order):
+# plt.plot(x_axis, poly(x_axis, i, dict()))
+# plt.show()
+plt.plot(x_axis, favard_basis(x_axis))
 plt.show()
-
-for i in range(5):
-    favard_gp_sample = favard_mgp.gen_gp()
-    plt.plot(x_axis, favard_gp_sample(x_axis), ls="dashed")
-plt.show()
-
-
-# training
-
-# presentation

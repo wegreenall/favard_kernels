@@ -202,6 +202,7 @@ if __name__ == "__main__":
         ]
     )
     betas, gammas = builders.get_gammas_betas_from_moments(true_moments, order)
+    breakpoint()
     betas.requires_grad = True
     gammas.requires_grad = True
     cat_net = CatNet(order, betas, gammas)
