@@ -139,8 +139,9 @@ class CatNet(nn.Module):
 
 
 if __name__ == "__main__":
-    order = 5
-    opt_norm = True
+    order = 6
+    opt_norm = False
+    # betas = torch.zeros(2 * order)
     betas = torch.ones(2 * order)
     gammas = torch.ones(2 * order)
     betas.requires_grad = True
