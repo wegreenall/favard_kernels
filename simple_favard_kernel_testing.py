@@ -59,8 +59,9 @@ def test_function(x: torch.Tensor) -> torch.Tensor:
 
 
 # sample parameters
-order = 18
-normalise = True
+order = 8
+normalise = False
+mixing = True
 sample_size = 500
 sample_shape = torch.Size((sample_size,))
 noise_parameter = torch.Tensor([0.5])
@@ -94,11 +95,20 @@ control_mgp = mgp_builders.build_mercer_gp(
     1,
 )
 
+# build the input distributions
+mixture_dist = D.Categorical(torch.Tensor([0.3, 0.7]))
+means = 1.5 * torch.Tensor([-1.0, 3.0])
+variances = torch.Tensor([1.0, 1.0])
+component_dist_1 = D.Normal(means, variances)
 
 # favard model setup - gamma input distribution
 favard_alpha = torch.Tensor([3.0])
 favard_beta = torch.Tensor([3.0])
-favard_input_measure = D.Gamma(favard_alpha, favard_beta)
+if mixing:
+    favard_input_measure = D.MixtureSameFamily(mixture_dist, component_dist_1)
+else:
+    favard_input_measure = D.Gamma(favard_alpha, favard_beta)
+
 if not normalise:
     favard_input_sample = favard_input_measure.sample(sample_shape).squeeze()
 else:
@@ -111,7 +121,7 @@ else:
         # * 20
     )
 
-favard_output_sample = test_function(control_input_sample) + noise_sample
+favard_output_sample = test_function(favard_input_sample) + noise_sample
 
 # build the favard basis
 """
@@ -138,7 +148,7 @@ kernel_params = {
 }
 eigenvalues = bf.smooth_exponential_eigenvalues_fasshauer(order, kernel_params)
 kernel = mgp.MercerKernel(order, favard_basis, eigenvalues, kernel_params)
-test_kernel = HardWiredKernel(order, favard_basis, eigenvalues, kernel_params)
+# test_kernel = HardWiredKernel(order, favard_basis, eigenvalues, kernel_params)
 
 # favard model prior mercer gaussian process
 
@@ -147,10 +157,8 @@ x_axis = torch.linspace(-6, 6, 1000)
 
 # plot the built kernel
 kernel_values = kernel(torch.Tensor([0.0]), x_axis.unsqueeze(1))
-test_kernel_values = test_kernel(torch.Tensor([0.0]), x_axis.unsqueeze(1))
 # breakpoint()
 plt.plot(x_axis, kernel_values.squeeze())
-# plt.plot(x_axis, test_kernel_values)
 plt.show()
 
 # plot the basis functions...
