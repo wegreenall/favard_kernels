@@ -44,14 +44,17 @@ control_prior_ard_parameter = torch.Tensor([1.0])
 control_prior_precision_parameter = torch.Tensor(
     [1.0]
 )  # the prior here is correct. Remedy this if relevant
+eigen_smooth_param = torch.Tensor([1.0])
+eigen_scale_param = torch.Tensor([1.0])
+eigen_shape_param = torch.Tensor([1.0])
 
-favard_prior_ard_parameter = torch.Tensor([0.5])
-favard_prior_precision_parameter = torch.Tensor(
-    [0.5]
-)  # the prior here is correct. Remedy this if relevant
+# favard_prior_ard_parameter = torch.Tensor([0.5])
+# favard_prior_precision_parameter = torch.Tensor(
+# [0.5]
+# )  # the prior here is correct. Remedy this if relevant
 
-favard_prior_ard_parameter.requires_grad = True
-favard_prior_precision_parameter.requires_grad = True
+# favard_prior_ard_parameter.requires_grad = True
+# favard_prior_precision_parameter.requires_grad = True
 
 # control model setup
 control_mean = torch.Tensor([0.0])
@@ -64,6 +67,9 @@ control_basis_params = {
     "ard_parameter": control_prior_ard_parameter,
     "precision_parameter": control_prior_precision_parameter,
     "noise_parameter": noise_parameter,
+    "eigenvalue_smoothness_parameter": eigen_smooth_param,
+    "eigenvalue_scale_parameter": eigen_scale_param,
+    "shape_parameter": eigen_shape_param,
 }
 control_basis = bf.Basis(
     bf.smooth_exponential_basis_fasshauer, 1, order, control_basis_params
@@ -95,17 +101,17 @@ if mixing:
 else:
     favard_input_measure = D.Gamma(favard_alpha, favard_beta)
 
-if not normalise:
-    favard_input_sample = favard_input_measure.sample(sample_shape).squeeze()
-else:
-    favard_input_sample = (
-        (favard_input_measure.sample(sample_shape).squeeze())
-        - favard_alpha / favard_beta
-    ) / (
-        favard_alpha / (favard_beta ** 2)
-    )  # * 20
+# if not normalise:
+# favard_input_sample = favard_input_measure.sample(sample_shape).squeeze()
+# else:
+# favard_input_sample = (
+# (favard_input_measure.sample(sample_shape).squeeze())
+# - favard_alpha / favard_beta
+# ) / (
+# favard_alpha / (favard_beta ** 2)
+# )  # * 20
 
-favard_output_sample = test_function(favard_input_sample) + noise_sample
+# favard_output_sample = test_function(favard_input_sample) + noise_sample
 
 # build the favard basis
 """
@@ -113,43 +119,47 @@ favard_output_sample = test_function(favard_input_sample) + noise_sample
     exponential moments according to the weight function, and then fix 
     the basis. Then apply this basis to the Mercer Gaussian Process.
 """
-moments = ortho_builders.get_moments_from_sample(
-    favard_input_sample, 2 * order, weight_function
-)
-plt.hist(favard_input_sample.numpy().flatten(), bins=60)
-plt.show()
-betas, gammas = ortho_builders.get_gammas_betas_from_moments(moments, order)
-favard_basis = ortho_builders.get_orthonormal_basis(
-    betas, gammas, order, weight_function
-)
+# moments = ortho_builders.get_moments_from_sample(
+# favard_input_sample, 2 * order, weight_function
+# )
+# plt.hist(favard_input_sample.numpy().flatten(), bins=60)
+# plt.show()
+# betas, gammas = ortho_builders.get_gammas_betas_from_moments(moments, order)
+# favard_basis = ortho_builders.get_orthonormal_basis(
+# betas, gammas, order, weight_function
+# )
 
 # building the kernel for presentation
-favard_basis_params = {
-    "ard_parameter": favard_prior_ard_parameter,
-    "precision_parameter": favard_prior_precision_parameter,
-    "noise_parameter": noise_parameter,
-}
-eigenvalues = bf.smooth_exponential_eigenvalues_fasshauer(order, favard_basis_params)
-kernel = mgp.MercerKernel(order, favard_basis, eigenvalues, favard_basis_params)
+# favard_basis_params = {
+# "ard_parameter": favard_prior_ard_parameter,
+# "precision_parameter": favard_prior_precision_parameter,
+# "noise_parameter": noise_parameter,
+# }
+# eigenvalues = bf.smooth_exponential_eigenvalues_fasshauer(
+# order, favard_basis_params
+# )
+# kernel = mgp.MercerKernel(
+# order, favard_basis, eigenvalues, favard_basis_params
+# )
 
 # favard model prior mercer gaussian process
-favard_mgp = mgp_builders.build_mercer_gp(
-    favard_basis,
-    favard_prior_ard_parameter,
-    favard_prior_precision_parameter,
-    noise_parameter,
-    order,
-    1,
-)
+# favard_mgp = mgp_builders.build_mercer_gp(
+# favard_basis,
+# favard_prior_ard_parameter,
+# favard_prior_precision_parameter,
+# noise_parameter,
+# order,
+# 1,
+# )
 
 # plotting x_axis
 x_axis = torch.linspace(-6, 6, 1000)
 
 # plot the built kernel
-kernel_values = kernel(torch.Tensor([0.0]), x_axis.unsqueeze(1))
+# kernel_values = kernel(torch.Tensor([0.0]), x_axis.unsqueeze(1))
 # breakpoint()
-plt.plot(x_axis, kernel_values.squeeze().detach())
-plt.show()
+# plt.plot(x_axis, kernel_values.squeeze().detach())
+# plt.show()
 
 # prior samples
 for i in range(5):
@@ -159,44 +169,52 @@ for i in range(5):
     # plt.plot(x_axis, favard_gp_sample(x_axis), ls="dashed")
 plt.show()
 
-for i in range(5):
-    favard_gp_sample = favard_mgp.gen_gp()
-    plt.plot(x_axis, favard_gp_sample(x_axis).detach(), ls="dashed")
-plt.show()
+# for i in range(5):
+# favard_gp_sample = favard_mgp.gen_gp()
+# plt.plot(x_axis, favard_gp_sample(x_axis).detach(), ls="dashed")
+# plt.show()
 
+control_prior_ard_parameter.requires_grad = True
+control_prior_precision_parameter.requires_grad = True
 
 control_optimiser = torch.optim.SGD(
-    [param for param in control_basis_params.values()], lr=0.001
+    [param for param in control_basis_params.values()], lr=0.0001
 )
-favard_optimiser = torch.optim.SGD(
-    [param for param in favard_basis_params.values()], lr=0.001
-)
+# favard_optimiser = torch.optim.SGD(
+# [param for param in favard_basis_params.values()], lr=0.001
+# )
 control_eigenvalue_generator = eigenvalue_gen.SmoothExponentialFasshauer(order)
-favard_eigenvalue_generator = eigenvalue_gen.SmoothExponentialFasshauer(order)
+# favard_eigenvalue_generator = eigenvalue_gen.SmoothExponentialFasshauer(order)
 
 # training
-control_likelihood = mgp_likelihood.MercerLikelihood(
+# control_likelihood = mgp_likelihood.MercerLikelihood(
+# order,
+# control_optimiser,
+# control_basis,
+# control_input_sample,
+# control_output_sample,
+# control_eigenvalue_generator,
+# )
+control_likelihood = mgp_likelihood.FavardLikelihood(
     order,
     control_optimiser,
     control_basis,
     control_input_sample,
     control_output_sample,
-    control_eigenvalue_generator,
+    # control_eigenvalue_generator,
 )
-favard_likelihood = mgp_likelihood.MercerLikelihood(
-    order,
-    favard_optimiser,
-    favard_basis,
-    control_input_sample,
-    control_output_sample,
-    favard_eigenvalue_generator,
-)
+# favard_likelihood = mgp_likelihood.MercerLikelihood(
+# order,
+# favard_optimiser,
+# favard_basis,
+# control_input_sample,
+# control_output_sample,
+# favard_eigenvalue_generator,
+# )
 
 
-control_prior_ard_parameter.requires_grad = True
-control_prior_precision_parameter.requires_grad = True
 control_likelihood.fit(control_basis_params)
-favard_likelihood.fit(favard_basis_params)
+# favard_likelihood.fit(favard_basis_params)
 
 
 # presentation
