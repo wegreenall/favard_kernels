@@ -91,7 +91,7 @@ parameters = {
     "shape_parameter": shape_parameter,
 }
 gammas.requires_grad = False
-noise_parameter.requires_grad = True
+noise_parameter.requires_grad = False
 eigenvalue_smoothness_parameter.requires_grad = False
 eigenvalue_scale_parameter.requires_grad = True
 shape_parameter.requires_grad = True
