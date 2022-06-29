@@ -34,6 +34,19 @@ def train_favard_params(
     )
     new_parameters = parameters.copy()
     mgp_likelihood.fit(new_parameters)
+    # for param in filter(
+    # lambda param: (isinstance(param, torch.Tensor))
+    # and (param.requires_grad),
+    # new_parameters.values(),
+    # ):
+    # # new_parameters[param] = new_parameters[param].detach()
+    # param = param.detach()
+    for param in filter(
+        lambda param: isinstance(new_parameters[param], torch.Tensor),
+        new_parameters,
+    ):
+        new_parameters[param] = new_parameters[param].detach()
+
     return new_parameters
 
 
@@ -65,4 +78,5 @@ def build_favard_gp(
 
     # build the gp
     mgp = MercerGP(basis, order, dim, kernel)
+    breakpoint()
     return mgp
