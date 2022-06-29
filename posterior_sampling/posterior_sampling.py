@@ -3,6 +3,7 @@ import torch.distributions as D
 from favard_kernels.builders import build_favard_gp
 
 from mercergp.builders import train_mercer_params, build_mercer_gp
+from mercergp.MGP import SmoothExponentialRFFGP
 from mercergp.eigenvalue_gen import SmoothExponentialFasshauer
 import matplotlib.pyplot as plt
 
@@ -58,29 +59,33 @@ Construct the input/output samples
 """
 sample_size = 400
 sample_shape = torch.Size([sample_size])
-noise_sample = (
-    D.Normal(0.0, true_noise_parameter).sample(sample_shape).squeeze()
-)
+noise_sample = D.Normal(0.0, true_noise_parameter).sample(sample_shape).squeeze()
 input_sample = D.Normal(0.0, 1.0).sample(sample_shape)
 
+rff_gp = SmoothExponentialRFFGP(500 * order, 1)
 # to build this, we just take the output sample to be the residuals from the
 # prior function.
 output_sample = test_function(input_sample) + noise_sample
-genned_prior = 
-residual_sample = output_sample - genned_prior(input_sample)
 
 mercer_gp = build_mercer_gp(
     parameters,
     order,
     input_sample,
-    output_sample,
 )
-mercer_gp.add_data(input_sample, residual_sample)
+# mercer_gp.add_data(input_sample, residual_sample)
 
-x_axis = torch.linspace(-5, 5, 1000)
-for i in range(5):
-    gp_sample = mercer_gp.gen_gp()
-    plt.plot(x_axis, gp_sample(x_axis))
+x_axis = torch.linspace(-9, 9, 1000)
+for i in range(20):
+    rff_sample = rff_gp.gen_gp()
+    residual_sample = output_sample - rff_sample(input_sample)
+    mercer_gp.set_data(input_sample, residual_sample)
+    posterior_sample = mercer_gp.gen_gp()
+    plt.plot(x_axis, posterior_sample(x_axis) + rff_sample(x_axis))
+# plt.show()
+
+# for i in range(5):
+# gp_sample = mercer_gp.gen_gp()
+# plt.plot(x_axis, gp_sample(x_axis) + genned_prior(x_axis))
 
 plt.plot(x_axis, test_function(x_axis), ls="dashed")
 plt.scatter(input_sample, output_sample)
