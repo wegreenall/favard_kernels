@@ -1,53 +1,82 @@
 import torch
 from ortho.orthopoly import OrthonormalPolynomial
+from ortho.builders import get_orthonormal_basis_from_sample
 from ortho.measure import MaximalEntropyDensity
 from ortho.basis_functions import OrthonormalBasis
 from mercergp.MGP import MercerKernel, MercerGP
+from mercergp.eigenvalue_gen import EigenvalueGenerator
+from mercergp.likelihood import MercerLikelihood
 import matplotlib.pyplot as plt
+from typing import Callable
+
+
+def train_favard_params(
+    parameters: dict,
+    eigenvalue_generator: EigenvalueGenerator,
+    order: int,
+    input_sample: torch.Tensor,
+    output_sample: torch.Tensor,
+    weight_function: Callable,
+    optimiser: torch.optim.Optimizer,
+    dim=1,
+) -> dict:
+
+    basis = get_orthonormal_basis_from_sample(
+        input_sample, weight_function, order
+    )
+    mgp_likelihood = MercerLikelihood(
+        order,
+        optimiser,
+        basis,
+        input_sample,
+        output_sample,
+        eigenvalue_generator,
+    )
+    new_parameters = parameters.copy()
+    mgp_likelihood.fit(new_parameters)
+    # for param in filter(
+    # lambda param: (isinstance(param, torch.Tensor))
+    # and (param.requires_grad),
+    # new_parameters.values(),
+    # ):
+    # # new_parameters[param] = new_parameters[param].detach()
+    # param = param.detach()
+    for param in filter(
+        lambda param: isinstance(new_parameters[param], torch.Tensor),
+        new_parameters,
+    ):
+        new_parameters[param] = new_parameters[param].detach()
+
+    return new_parameters
 
 
 def build_favard_gp(
     parameters: dict,
+    eigenvalue_generator: EigenvalueGenerator,
     order: int,
     input_sample: torch.Tensor,
     output_sample: torch.Tensor,
+    weight_function: Callable,
+    dim=1,
 ) -> MercerGP:
     """
-    Returns a Mercer GP, given the training of a likelihood.
+    Returns a Mercer Gaussian process with a basis constructed from the input
+    sample measure.
 
-    param parameters: a dictionary containing the parameters for the
-                      Mercer Likelihood
+    param eigenvalue_generator: a callable that returns, a tensor of "order"
+            eigenvalues, with input being the parameter dictionary 'parameters'
     """
-    gammas = parameters["gammas"].detach().clone()
-    noise_parameter = parameters["noise_parameter"].detach().clone()
-    eigenvalue_smoothness_parameter = (
-        parameters["eigenvalue_smoothness_parameter"].detach().clone()
+    # get the corresponding orthonormal basis.
+    # weight_function
+    basis = get_orthonormal_basis_from_sample(
+        input_sample, weight_function, order
     )
-    eigenvalue_scale_parameter = (
-        parameters["eigenvalue_scale_parameter"].detach().clone()
-    )
-    shape_parameter = parameters["shape_parameter"].detach().clone()
+    eigenvalues = eigenvalue_generator(parameters)
 
-    betas = torch.zeros(2 * order)
-    final_orthopoly = OrthonormalPolynomial(
-        order, betas[:order], gammas[:order]
-    )
-    final_weight_function = MaximalEntropyDensity(order, betas, gammas)
-    final_basis = OrthonormalBasis(
-        final_orthopoly, final_weight_function, 1, order
-    )
+    # build the kernel
+    kernel = MercerKernel(order, basis, eigenvalues, parameters)
 
-    # breakpoint()
-    eigenvalues = (
-        eigenvalue_scale_parameter
-        / (torch.linspace(1, order, order) + shape_parameter)
-        ** eigenvalue_smoothness_parameter
-    ).detach()
-    print("Eigenvalues:", eigenvalues)
-    plt.plot(eigenvalues[:-2])
-    plt.show()
-    kernel_params = {"noise_parameter": noise_parameter}
-    kernel = MercerKernel(order, final_basis, eigenvalues, kernel_params)
-    favard_gp = MercerGP(final_basis, order, 1, kernel)
-    favard_gp.add_data(input_sample, output_sample)
-    return favard_gp
+    # build the gp
+    mgp = MercerGP(basis, order, dim, kernel)
+    breakpoint()
+    return mgp
