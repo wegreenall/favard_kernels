@@ -51,9 +51,7 @@ eigenvalue_generator = SmoothExponentialFasshauer(order)
 # input_sample
 sample_size = 400
 sample_shape = torch.Size([sample_size])
-noise_sample = (
-    D.Normal(0.0, true_noise_parameter).sample(sample_shape).squeeze()
-)
+noise_sample = D.Normal(0.0, true_noise_parameter).sample(sample_shape).squeeze()
 mixture_dist = D.Categorical(torch.Tensor([0.2, 0.8]))
 means = 1.4 * torch.Tensor([-1.0, 3.0])
 variances = torch.Tensor([1.0, 1.0])
@@ -67,9 +65,7 @@ output_sample = test_function(input_sample) + noise_sample
 # optimiser = torch.optim.SGD(
 # [param for param in parameters.values()], lr=0.00001
 # )
-optimiser = torch.optim.Adam(
-    [param for param in parameters.values()], lr=0.001
-)
+optimiser = torch.optim.Adam([param for param in parameters.values()], lr=0.001)
 
 fitted_parameters = train_mercer_params(
     parameters,

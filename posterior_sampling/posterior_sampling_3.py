@@ -1,34 +1,29 @@
 import torch
 import torch.distributions as D
+from favard_kernels.builders import build_favard_gp
 
-from favard_kernels.builders import train_favard_params, build_favard_gp
-from mercergp.eigenvalue_gen import (
-    SmoothExponentialFasshauer,
-    PolynomialEigenvalues,
-)
+from mercergp.builders import train_mercer_params, build_mercer_gp
 from mercergp.MGP import SmoothExponentialRFFGP
+from mercergp.eigenvalue_gen import SmoothExponentialFasshauer
 import matplotlib.pyplot as plt
 
 """
-This experiment shows a synthetic example of the Favard GP construction.
-
-In this case, the input distribution is a Gaussian mixture (see lines
-70 - 78). This is the Favard version, so it should work "better"
-than the standard Mercer version.
+This script will attempt to build an example of the machinery for constructing 
+the posterior Gaussian process as a decoupled basis. Following "Wilson et al 2020",
+which itself appears to follow "Hensman et al 2017" relatively closely, the aim 
+is to evaluate the process of essentially modelling the posterior 'component' 
+using a sparse GP, whilst keeping the prior "component" in the form of the
+RFF setup.
 """
 
-print(
-    "This experiment shows a synthetic example of the Favard GP construction.\
-This should yield a reasonable orthgonal basis given the input measure,\
-and it likely will not be far from the Hermite functions."
-)
+# first, generate the data.
 
 
 def weight_function(x: torch.Tensor) -> torch.Tensor:
     """
     Evaluates the weight function. Usually, e^{-lx^2}
     """
-    length = torch.tensor(2.5)
+    length = torch.tensor(1.5)
     return torch.exp(-length * x ** 2)
 
 
@@ -51,73 +46,69 @@ def test_function(x: torch.Tensor) -> torch.Tensor:
  The parameters dictionary should include the appropriate parameters as noted
  in the corresponding eigenvalue generator class.
 """
-order = 16
 true_noise_parameter = torch.Tensor([0.2])
-noise_parameter = torch.Tensor([1.0])
-scale_parameter = torch.Tensor([1.0])
-shape_parameter = torch.ones(order)
-noise_parameter.requires_grad = True
-shape_parameter.requires_grad = True
-scale_parameter.requires_grad = True
+noise_parameter = torch.Tensor([0.2])
+ard_parameter = torch.Tensor([1.0])
+precision_parameter = torch.Tensor([2.00])
+noise_parameter.requires_grad = False
+precision_parameter.requires_grad = False
+ard_parameter.requires_grad = False
 parameters = {
     "noise_parameter": noise_parameter,
-    "scale": scale_parameter,
-    "shape": shape_parameter,
-    "degree": 6,
+    "ard_parameter": ard_parameter,
+    "precision_parameter": precision_parameter,
 }
-eigenvalue_generator = PolynomialEigenvalues(order)
+order = 10
+eigenvalue_generator = SmoothExponentialFasshauer(order)
 
-# input_sample
+
+"""
+Construct the input/output samples
+"""
 sample_size = 400
 sample_shape = torch.Size([sample_size])
 noise_sample = D.Normal(0.0, true_noise_parameter).sample(sample_shape).squeeze()
-# input_sample = D.Normal(0.0, 1.0).sample(sample_shape)
+mean_vector = torch.Tensor([-0.0, 3.0])
+variance_vector = torch.Tensor([1.0, 1.0])
+core_dist = D.Normal(mean_vector, variance_vector)
 mixture_dist = D.Categorical(torch.Tensor([0.2, 0.8]))
-means = torch.Tensor([-0.0, 2.0])
-variances = torch.Tensor([0.8, 0.8])
-component_dist_1 = D.Normal(means, variances)
+# mixture_dist = D.Categorical(torch.Tensor([1.0, 0.0]))
+input_dist = D.MixtureSameFamily(mixture_dist, core_dist)
+input_sample = input_dist.sample(sample_shape)
+# input_sample = D.Normal(0.0, 1.0).sample(sample_shape)
 
-
-favard_input_measure = D.MixtureSameFamily(mixture_dist, component_dist_1)
-input_sample = favard_input_measure.sample(sample_shape)
+rff_gp = SmoothExponentialRFFGP(500 * order, 1)
+# to build this, we just take the output sample to be the residuals from the
+# prior function.
 output_sample = test_function(input_sample) + noise_sample
 
-# optimiser = torch.optim.SGD(
-# [param for param in parameters.values()], lr=0.00001
-# )
 optimiser = torch.optim.Adam(
     [param for param in parameters.values() if isinstance(param, torch.Tensor)],
     lr=0.001,
 )
-
-fitted_parameters = train_favard_params(
+favard_gp = build_favard_gp(
     parameters,
     eigenvalue_generator,
     order,
     input_sample,
     output_sample,
     weight_function,
-    optimiser,
+    dim,
 )
+# mercer_gp.add_data(input_sample, residual_sample)
 
-favard_gp = build_favard_gp(
-    fitted_parameters,
-    eigenvalue_generator,
-    order,
-    input_sample,
-    output_sample,
-    weight_function,
-)
-favard_gp.add_data(input_sample, output_sample)
-
-rff_gp = SmoothExponentialRFFGP(500 * order, 1)
-x_axis = torch.linspace(-6, 6, 1000)
-for i in range(10):
+x_axis = torch.linspace(-9, 9, 1000)
+for i in range(20):
     rff_sample = rff_gp.gen_gp()
     residual_sample = output_sample - rff_sample(input_sample)
     favard_gp.set_data(input_sample, residual_sample)
     posterior_sample = favard_gp.gen_gp()
     plt.plot(x_axis, posterior_sample(x_axis) + rff_sample(x_axis))
+# plt.show()
+
+# for i in range(5):
+# gp_sample = mercer_gp.gen_gp()
+# plt.plot(x_axis, gp_sample(x_axis) + genned_prior(x_axis))
 
 plt.plot(x_axis, test_function(x_axis), ls="dashed")
 plt.scatter(input_sample, output_sample)
