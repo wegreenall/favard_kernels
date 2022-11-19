@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import ortho.builders as builders
 
 torch.set_default_tensor_type(torch.DoubleTensor)
-torch.set_printoptions(precision=5, linewidth=300)
+torch.set_printoptions(precision=2, linewidth=300)
 
 """
 The Gautschi technique via the Chebyshev method appears to have a problem of 
@@ -164,11 +164,19 @@ if __name__ == "__main__":
     opt_symmetric = True
     optimise_all = True
     # betas = torch.zeros(2 * order)
-    betas = torch.ones(2 * order)
-    gammas = torch.ones(2 * order)
-    sampling_dist = D.Normal(1.0, 0.5)
-    # betas = sampling_dist.sample((2 * order))
-    # gammas = sampling_dist.sample((2 * order))
+    betas = torch.ones(1 * order)
+    gammas = torch.ones(1 * order)
+    # sampling_dist = D.Normal(1.0, 0.5)
+    betas.requires_grad = True
+    gammas.requires_grad = True
+    cat_net = CatNet(order, betas, gammas)
+    # random_input = sampling_dist.sample().unsqueeze(0)
+    value = cat_net(torch.Tensor([1.0]))
+    # value = cat_net(torch.Tensor(random_input))
+    print(colored("Given initial betas", "blue"), colored(betas, "yellow"))
+    print(colored("Given initial gammas", "blue"), colored(gammas, "yellow"))
+    print("Calculated moments for given initial betas:", value)
+    # breakpoint()
     true_moments = torch.Tensor(
         [
             1.0,
@@ -201,28 +209,8 @@ if __name__ == "__main__":
             0.0,
         ]
     )
-    betas, gammas = builders.get_gammas_betas_from_moments(true_moments, order)
-    breakpoint()
-    betas.requires_grad = True
-    gammas.requires_grad = True
-    cat_net = CatNet(order, betas, gammas)
-    random_input = sampling_dist.sample().unsqueeze(0)
-    value = cat_net(torch.Tensor([1.0]))
-    # value = cat_net(torch.Tensor(random_input))
-    print(colored("Given initial betas", "blue"), colored(betas, "yellow"))
-    print(colored("Given initial gammas", "blue"), colored(gammas, "yellow"))
-    print("Calculated moments for given initial betas:", value)
-    print(colored(torch.abs(true_moments - value), "green"))
+    print(colored(torch.abs(true_moments[: 2 * order] - value), "green"))
     print("IDEA: use as initial betas the ones from the hankels")
-    breakpoint()
-
-    # initial_jordan = jordan_matrix(betas, gammas)
-    # correct_jordan = jordan_matrix(
-    # torch.zeros(2 * order), torch.ones(2 * order)
-    # )
-    # for i in range(1, 2 * order + 1):
-    # weights = initial_jordan[: i + 1, :i].view(-1, i)
-    # print(weights)
     if opt_symmetric:
         true_betas = torch.zeros(order)
         true_gammas = torch.ones(order)
@@ -232,26 +220,11 @@ if __name__ == "__main__":
     else:
         true_betas = torch.ones(order)
         true_gammas = torch.ones(order)
-        true_moments = torch.Tensor(
-            [
-                1.0,
-                1.0,
-                2.0,
-                4.0,
-                9.0,
-                21.0,
-                51.0,
-                127.0,
-                323.0,
-                835.0,
-                2188.0,
-                5798.0,
-            ]
-        )
+
+        true_moments = true_moments[: 2 * order]
     start_moments = torch.zeros(true_moments.shape)
 
     # set up optimisation
-
     if optimise_all:
         params_list = []
         for layer in cat_net.layers:
@@ -301,7 +274,7 @@ if __name__ == "__main__":
                 colored("true betas:", "yellow"), colored(true_betas, "yellow")
             )
             print(
-                colored("truue gammas:", "blue"), colored(true_gammas, "blue")
+                colored("true gammas:", "blue"), colored(true_gammas, "blue")
             )
             # print(betas_gammas_jordan - correct_jordan[:, :-1])
             print(betas_gammas_jordan)

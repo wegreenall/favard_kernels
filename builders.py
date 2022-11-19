@@ -21,7 +21,9 @@ def train_favard_params(
     dim=1,
 ) -> dict:
 
-    basis = get_orthonormal_basis_from_sample(input_sample, weight_function, order)
+    basis = get_orthonormal_basis_from_sample(
+        input_sample, weight_function, order
+    )
     mgp_likelihood = MercerLikelihood(
         order,
         optimiser,
@@ -66,7 +68,9 @@ def build_favard_gp(
     """
     # get the corresponding orthonormal basis.
     # weight_function
-    basis = get_orthonormal_basis_from_sample(input_sample, weight_function, order)
+    basis = get_orthonormal_basis_from_sample(
+        input_sample, weight_function, order
+    )
     eigenvalues = eigenvalue_generator(parameters)
 
     # build the kernel
@@ -74,5 +78,5 @@ def build_favard_gp(
 
     # build the gp
     mgp = MercerGP(basis, order, dim, kernel)
-    breakpoint()
+    # breakpoint()
     return mgp

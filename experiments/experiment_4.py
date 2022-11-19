@@ -44,7 +44,7 @@ parameters = {
     "ard_parameter": ard_parameter,
     "precision_parameter": precision_parameter,
 }
-order = 20
+order = 15
 eigenvalue_generator = SmoothExponentialFasshauer(order)
 
 # input_sample
