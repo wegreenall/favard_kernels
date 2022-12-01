@@ -1,10 +1,11 @@
 import torch
+import torch.autograd as autograd
 from ortho.orthopoly import OrthonormalPolynomial
 from ortho.builders import get_orthonormal_basis_from_sample
 from ortho.measure import MaximalEntropyDensity
 from ortho.basis_functions import OrthonormalBasis
 from mercergp.MGP import MercerKernel, MercerGP
-from mercergp.eigenvalue_gen import EigenvalueGenerator
+from mercergp.eigenvalue_gen import EigenvalueGenerator, FavardEigenvalues
 from mercergp.likelihood import MercerLikelihood
 import matplotlib.pyplot as plt
 from typing import Callable
@@ -12,7 +13,7 @@ from typing import Callable
 
 def train_favard_params(
     parameters: dict,
-    eigenvalue_generator: EigenvalueGenerator,
+    # eigenvalue_generator: EigenvalueGenerator,
     order: int,
     input_sample: torch.Tensor,
     output_sample: torch.Tensor,
@@ -20,10 +21,30 @@ def train_favard_params(
     optimiser: torch.optim.Optimizer,
     dim=1,
 ) -> dict:
+    """ """
 
+    # breakpoint()
     basis = get_orthonormal_basis_from_sample(
         input_sample, weight_function, order
     )
+
+    # x = torch.tensor(0.0)
+    x = torch.Tensor([0.0])
+    x.requires_grad = True
+
+    # get the basis at zero and its derivatives
+    f0 = basis(x)
+    # breakpoint()
+    df0 = autograd.functional.jacobian(basis, x).squeeze(2)
+    d2f0 = f0.clone()  # autograd.grad(df0, x)[0]
+    breakpoint()
+    assert (
+        f0.shape == df0.shape == d2f0.shape
+    ), "derivative and second derivative are the wrong shape : ASSRT STATEMENT"
+
+    # build the Favard eigenvalue generator
+    eigenvalue_generator = FavardEigenvalues(order, f0, df0, d2f0)
+
     mgp_likelihood = MercerLikelihood(
         order,
         optimiser,
@@ -45,6 +66,7 @@ def train_favard_params(
         lambda param: isinstance(new_parameters[param], torch.Tensor),
         new_parameters,
     ):
+        print(new_parameters[param])
         new_parameters[param] = new_parameters[param].detach()
 
     return new_parameters

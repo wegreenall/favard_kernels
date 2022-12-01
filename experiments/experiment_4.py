@@ -1,7 +1,10 @@
 import torch
 import torch.distributions as D
 
-from mercergp.builders import train_mercer_params, build_mercer_gp
+from mercergp.builders import (
+    train_smooth_exponential_mercer_params,
+    build_mercer_gp,
+)
 from mercergp.eigenvalue_gen import SmoothExponentialFasshauer
 import matplotlib.pyplot as plt
 
@@ -63,7 +66,7 @@ optimiser = torch.optim.Adam(
     [param for param in parameters.values()], lr=0.001
 )
 
-fitted_parameters = train_mercer_params(
+fitted_parameters = train_smooth_exponential_mercer_params(
     parameters,
     order,
     input_sample,
