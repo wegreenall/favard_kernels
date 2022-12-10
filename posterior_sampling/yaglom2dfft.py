@@ -34,5 +34,5 @@ kernel_args = {
     "precision_parameter": torch.Tensor([1.0]),
     "noise_parameter": torch.Tensor([1.0]),
 }
-sample = 
-kernel = MercerKernel(order, basis, eigenvalues, kernel_args)
+# sample =
+# kernel = MercerKernel(order, basis, eigenvalues, kernel_args)
