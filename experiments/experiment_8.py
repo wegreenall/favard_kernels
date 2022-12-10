@@ -55,9 +55,7 @@ def get_gaussian_inputs_and_outputs(kernel_args, sample_shape):
 
     # input distributions
     # Gaussian
-    gaussian_input_distribution = D.Normal(
-        torch.Tensor([0.0]), torch.Tensor([1.0])
-    )
+    gaussian_input_distribution = D.Normal(torch.Tensor([0.0]), torch.Tensor([1.0]))
 
     # non-Gaussian
     mixing_distribution = D.Categorical(torch.Tensor([0.2, 0.8]))
@@ -96,18 +94,12 @@ def get_gps(
         non_gaussian_input_sample, non_gaussian_input_sample
     ) + kernel_args["noise_parameter"] * torch.eye(sample_size)
 
-    gaussian_input_gp = (
-        torch.linalg.cholesky(gaussian_input_kernel) @ z + noise_sample
-    )
-    non_gaussian_input_gp = (
-        torch.linalg.cholesky(non_gaussian_input_kernel) @ z
-    )
+    gaussian_input_gp = torch.linalg.cholesky(gaussian_input_kernel) @ z + noise_sample
+    non_gaussian_input_gp = torch.linalg.cholesky(non_gaussian_input_kernel) @ z
     return gaussian_input_gp, non_gaussian_input_gp
 
 
-def train_gaussian_parameters(
-    gaussian_input_sample, gaussian_output_sample, order
-):
+def train_gaussian_parameters(gaussian_input_sample, gaussian_output_sample, order):
     # For each of the function samples, estimate the length_scale parameter
     gaussian_initial_ard_parameter = torch.Tensor([0.1]).clone()
     gaussian_initial_precision_parameter = torch.Tensor([[1.0]]).clone()
@@ -145,9 +137,7 @@ def train_non_gaussian_parameters(
     non_gaussian_parameters = {
         "noise_parameter": non_gaussian_initial_noise_parameter,
         # "precision_parameter": non_gaussian_initial_precision_parameter,
-        "precision_parameter": torch.Tensor(
-            [1 / torch.std(non_gaussian_input_sample)]
-        ),
+        "precision_parameter": torch.Tensor([1 / torch.std(non_gaussian_input_sample)]),
         "ard_parameter": non_gaussian_initial_ard_parameter,
     }
     non_gaussian_optimiser = torch.optim.Adam(
@@ -179,9 +169,7 @@ def train_favard_parameters(
     favard_parameters = {
         "noise_parameter": favard_initial_noise_parameter,
         # "precision_parameter": favard_initial_precision_parameter,
-        "precision_parameter": torch.Tensor(
-            [1 / torch.std(non_gaussian_input_sample)]
-        ),
+        "precision_parameter": torch.Tensor([1 / torch.std(non_gaussian_input_sample)]),
         "ard_parameter": favard_initial_ard_parameter,
         "degree": 6,  # the eigenvalue polynomial exponent for the decay
     }
@@ -277,9 +265,7 @@ for i in range(start_number + 1, experiment_count):
             non_gaussian_input_sample, non_gaussian_input_gp, order
         )
         non_gaussian_saves = (
-            "./experiment_8_data/exp_8_non_gaussian_parameters_"
-            + str(i)
-            + ".pt"
+            "./experiment_8_data/exp_8_non_gaussian_parameters_" + str(i) + ".pt"
         )
         # non_gaussian_saves = open(non_gaussian_saves, "a")
         torch.save(trained_gaussian_input_params, non_gaussian_saves)
@@ -288,9 +274,7 @@ for i in range(start_number + 1, experiment_count):
         trained_favard_input_params = train_favard_parameters(
             non_gaussian_input_sample, non_gaussian_input_gp, order
         )
-        favard_saves = (
-            "./experiment_8_data/exp_8_favard_parameters_" + str(i) + ".pt"
-        )
+        favard_saves = "./experiment_8_data/exp_8_favard_parameters_" + str(i) + ".pt"
         # favard_saves = open(favard_saves, "a")
         torch.save(trained_gaussian_input_params, favard_saves)
 

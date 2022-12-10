@@ -7,6 +7,7 @@ from mercergp.builders import (
     build_mercer_gp,
 )
 from mercergp.eigenvalue_gen import SmoothExponentialFasshauer
+from termcolor import colored
 
 """
 This experiment will compare the predictive density found under the Hermite 
@@ -16,7 +17,11 @@ Gaussian input distribution.
 
 
 def get_gaussian_predictive_density(
-    true_test_dist, true_noise_parameter, true_sample, test_points
+    # true_test_dist,
+    # true_noise_parameter,
+    # true_sample,
+    test_points,
+    gaussian_input_distribution,
 ):
     # set up the parameters
     gaussian_noise_parameter = torch.Tensor([2.0])
@@ -30,19 +35,17 @@ def get_gaussian_predictive_density(
         "ard_parameter": gaussian_ard_parameter,
         "precision_parameter": gaussian_precision_parameter,
     }
-    order = 15
+    order = 20
     eigenvalue_generator = SmoothExponentialFasshauer(order)
 
     # sample data construction
-    sample_size = 400
+    sample_size = 200
     sample_shape = torch.Size([sample_size])
     noise_sample = noise_dist.sample(sample_shape).squeeze()
 
     # Gaussian input sample
-    gaussian_input_sample = D.Normal(0.0, 1.0).sample(sample_shape)
-    gaussian_output_sample = (
-        test_function(gaussian_input_sample) + noise_sample
-    )
+    gaussian_input_sample = gaussian_input_distribution.sample(sample_shape)
+    gaussian_output_sample = test_function(gaussian_input_sample) + noise_sample
 
     optimiser = torch.optim.Adam(
         [param for param in gaussian_parameters.values()], lr=0.001
@@ -77,19 +80,18 @@ def get_gaussian_predictive_density(
     # test_sample_size = 50
     # test_sample_shape = torch.Size([test_sample_size])
     # test_points = D.Normal(0.0, 1.0).sample(test_sample_shape)
-    gaussian_predictive_density = gaussian_mercer_gp.get_predictive_density(
-        test_points
-    )
+    gaussian_predictive_density = gaussian_mercer_gp.get_predictive_density(test_points)
+    breakpoint()
 
-    # breakpoint()
-    gaussian_kl = torch.distributions.kl_divergence(
-        gaussian_predictive_density, true_test_dist
-    )
-    return gaussian_kl
+    return gaussian_predictive_density
 
 
 def get_non_gaussian_predictive_density(
-    true_test_dist, true_noise_parameter, true_sample, test_points
+    # true_test_dist,
+    # true_noise_parameter,
+    # true_sample,
+    test_points,
+    non_gaussian_input_distribution,
 ):
     """
     Build the non-Gaussian input distribution Mercer GP
@@ -108,30 +110,17 @@ def get_non_gaussian_predictive_density(
         "ard_parameter": non_gaussian_ard_parameter,
         "precision_parameter": non_gaussian_precision_parameter,
     }
-    order = 15
+    order = 20
     eigenvalue_generator = SmoothExponentialFasshauer(order)
 
     # sample data construction
-    sample_size = 400
+    sample_size = 200
     sample_shape = torch.Size([sample_size])
-    noise_sample = (
-        D.Normal(0.0, true_noise_parameter).sample(sample_shape).squeeze()
-    )
+    noise_sample = D.Normal(0.0, true_noise_parameter).sample(sample_shape).squeeze()
 
     # non-Gaussian input sample
-    mixing_distribution = D.Categorical(torch.Tensor([0.2, 0.8]))
-    component_distribution = D.Normal(
-        torch.Tensor([-3, 3]), torch.Tensor([1, 1])
-    )
-    non_gaussian_input_distribution = D.MixtureSameFamily(
-        mixing_distribution, component_distribution
-    )
-    non_gaussian_input_sample = non_gaussian_input_distribution.sample(
-        sample_shape
-    )
-    non_gaussian_output_sample = (
-        test_function(non_gaussian_input_sample) + noise_sample
-    )
+    non_gaussian_input_sample = non_gaussian_input_distribution.sample(sample_shape)
+    non_gaussian_output_sample = test_function(non_gaussian_input_sample) + noise_sample
 
     optimiser = torch.optim.Adam(
         [param for param in non_gaussian_parameters.values()], lr=0.001
@@ -168,8 +157,8 @@ def get_non_gaussian_predictive_density(
     # gaussian_predictive_density = gaussian_mercer_gp.get_predictive_density(
     # test_points
     # )
-    non_gaussian_predictive_density = (
-        non_gaussian_mercer_gp.get_predictive_density(test_points)
+    non_gaussian_predictive_density = non_gaussian_mercer_gp.get_predictive_density(
+        test_points
     )
 
     # print("gaussian predictive density:", gaussian_predictive_density)
@@ -178,10 +167,10 @@ def get_non_gaussian_predictive_density(
     # get some samples from the function at the "truth".
 
     # breakpoint()
-    non_gaussian_kl = torch.distributions.kl_divergence(
-        non_gaussian_predictive_density, true_test_dist
-    )
-    return non_gaussian_kl
+    # non_gaussian_kl = torch.distributions.kl_divergence(
+    # non_gaussian_predictive_density, true_test_dist
+    # )
+    return non_gaussian_predictive_density
 
 
 def test_function(x: torch.Tensor) -> torch.Tensor:
@@ -193,28 +182,65 @@ def test_function(x: torch.Tensor) -> torch.Tensor:
 
 experiment_count = 1000
 
-test_points = torch.Tensor([0.0])
+# test_points = torch.Tensor([0.0])
+test_points_size = 60
+test_points_shape = torch.Size([test_points_size])
+test_points = D.Normal(0.0, 4.0).sample(test_points_shape)
+test_points_outputs = test_function(test_points)
 mean = test_function(test_points)
 true_noise_parameter = torch.Tensor([0.1])
+
+# gaussian_input_distribution
+gaussian_input_distribution = D.Normal(0.0, 1.0)
+
+# non_gaussian_input_distribution
+mixing_distribution = D.Categorical(torch.Tensor([0.2, 0.8]))
+component_distribution = D.Normal(torch.Tensor([-3, 3]), torch.Tensor([1, 1]))
+non_gaussian_input_distribution = D.MixtureSameFamily(
+    mixing_distribution, component_distribution
+)
 for i in range(experiment_count):
-    with open("experiments_data.csv", "a", newline="\n") as csvfile:
+    with open("experiments_data_predictive_score.csv", "a", newline="\n") as csvfile:
         writer = csv.writer(csvfile, delimiter=",")
         noise_dist = D.Normal(0.0, true_noise_parameter)
-        test_sample_size = 50
-        test_sample_shape = torch.Size([test_sample_size])
-        true_sample = mean + noise_dist.sample(test_sample_shape)
-        true_test_dist = D.Normal(mean, true_noise_parameter)
-        gaussian_kl = get_gaussian_predictive_density(
-            true_test_dist, true_noise_parameter, true_sample, test_points
+        # test_sample = gaussian_input_distribution.sample(test_sample_shape)
+        # test_sample_outputs = test_function(test_sample)
+
+        # true_test_dist = D.Normal(0, 1)
+
+        gaussian_predictive_density = get_gaussian_predictive_density(
+            # true_test_dist,
+            # true_noise_parameter,
+            test_points,
+            gaussian_input_distribution,
         )
 
-        non_gaussian_kl = get_non_gaussian_predictive_density(
-            true_test_dist, true_noise_parameter, true_sample, test_points
+        gaussian_predictive_densities = torch.exp(
+            gaussian_predictive_density.log_prob(test_points_outputs)
         )
-        print("GAUSSIAN KL:", gaussian_kl)
-        writer.writerow([gaussian_kl, non_gaussian_kl])
+        print(
+            "Gaussian predictive densities",
+            colored(gaussian_predictive_densities, "green"),
+        )
+        breakpoint()
+        non_gaussian_predictive_density = get_non_gaussian_predictive_density(
+            # true_test_dist,
+            # true_noise_parameter,
+            test_points,
+            non_gaussian_input_distribution,
+        )
+
+        # print("GAUSSIAN KL:", gaussian_kl)
+        non_gaussian_predictive_densities = torch.exp(
+            non_gaussian_predictive_density.log_prob(test_points_outputs)
+        )
+
+        print("Non Gaussian predictive densities", non_gaussian_predictive_densities)
+        gaussian_predictive_score = torch.sum(gaussian_predictive_densities)
+        non_gaussian_predictive_score = torch.sum(non_gaussian_predictive_densities)
+        writer.writerow([gaussian_predictive_score, non_gaussian_predictive_score])
         csvfile.close()
 
 
-print("gaussian kl", gaussian_kl)
-print("non gaussian kl", non_gaussian_kl)
+# print("gaussian kl", gaussian_kl)
+# print("non gaussian kl", non_gaussian_kl)
