@@ -24,9 +24,7 @@ def train_favard_params(
     """ """
 
     # breakpoint()
-    basis = get_orthonormal_basis_from_sample(
-        input_sample, weight_function, order
-    )
+    basis = get_orthonormal_basis_from_sample(input_sample, weight_function, order)
 
     # x = torch.tensor(0.0)
     x = torch.Tensor([0.0])
@@ -90,9 +88,7 @@ def build_favard_gp(
     """
     # get the corresponding orthonormal basis.
     # weight_function
-    basis = get_orthonormal_basis_from_sample(
-        input_sample, weight_function, order
-    )
+    basis = get_orthonormal_basis_from_sample(input_sample, weight_function, order)
     eigenvalues = eigenvalue_generator(parameters)
 
     # build the kernel
