@@ -80,17 +80,23 @@ control_output_sample = test_function(control_input_sample) + noise_sample
 basis_params = {
     "ard_parameter": prior_ard_parameter,
     "precision_parameter": prior_precision_parameter,
+    "noise_parameter": noise_parameter,
 }
 smooth_exponential_basis = bf.Basis(
     bf.smooth_exponential_basis_fasshauer, 1, order, basis_params
 )
 
 # control model prior mercer gaussian process
-control_mgp = mgp_builders.build_mercer_gp(
-    smooth_exponential_basis,
-    prior_ard_parameter,
-    prior_precision_parameter,
-    noise_parameter,
+# control_mgp = mgp_builders.build_smooth_exponential_mercer_gp(
+# smooth_exponential_basis,
+# prior_ard_parameter,
+# prior_precision_parameter,
+# noise_parameter,
+# order,
+# 1,
+# )
+control_mgp = mgp_builders.build_smooth_exponential_mercer_gp(
+    basis_params,
     order,
     1,
 )

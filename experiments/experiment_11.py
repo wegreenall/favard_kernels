@@ -27,21 +27,23 @@ from experiment_functions import test_function, weight_function, get_training_in
 
 
 def get_latest_experiment_number():
-    files = os.listdir("./experiment_9_data/")
+    files = os.listdir("./experiment_11_data/")
     numbers = []
     number_regex = re.compile(r"(?P<number>[0-9]*).pt")
-    for file in files:
-        # get the number in the filename
-        number_matches = number_regex.search(file)
-        if number_matches is not None:
-            number = number_matches.group("number")
-        else:
-            return 0
-        try:
-            numbers.append(int(number))
-            # print(number)
-        except ValueError:
-            pass
+    if len(files) > 0:
+        for file in files:
+            # get the number in the filename
+            number_matches = number_regex.search(file)
+            if number_matches is not None:
+                number = number_matches.group("number")
+            else:
+                return 0
+            try:
+                numbers.append(int(number))
+            except ValueError:
+                pass
+    else:
+        return 0
     return max(numbers)
 
 
@@ -196,6 +198,7 @@ def train_favard_gp(
 train_gaussian = True
 train_non_gaussian = True
 train_favard = True
+normal_test_inputs = False
 plot_initial_samples = False
 
 # first, get a sample function from a GP with a given length scale
@@ -213,81 +216,106 @@ experiment_count = 1000
 # prepare the general test points for all experiments
 test_points_size = 60
 test_points_shape = torch.Size([test_points_size])
+if normal_test_inputs:
+    # Gaussian
+    test_input_distribution = D.Normal(0.0, 4.0)
+else:
+    # non-Gaussian
+    mixing_distribution = D.Categorical(torch.Tensor([0.2, 0.8]))
+    component_distribution = D.Normal(
+        torch.Tensor([-2.7, 2.7]), torch.Tensor([0.6, 0.6])
+    )
+    test_input_distribution = D.MixtureSameFamily(
+        mixing_distribution, component_distribution
+    )
+    # test_input_distribution = Normal(0.0, 4.0)
+
 # test_points = D.Normal(0.0, 4.0).sample(test_points_shape)
 # test_points_outputs = test_function(test_points)
 
+order = 15
 start_number = get_latest_experiment_number()
+(
+    gaussian_input_sample,
+    non_gaussian_input_sample,
+) = get_training_inputs(sample_shape)
+
+gaussian_input_func, non_gaussian_input_func = get_funcs(
+    sample_shape, gaussian_input_sample, non_gaussian_input_sample
+)
+trained_gaussian_gp = train_gaussian_gp(
+    gaussian_input_sample, gaussian_input_func, order
+)
+
+trained_non_gaussian_gp = train_non_gaussian_gp(
+    non_gaussian_input_sample, non_gaussian_input_func, order
+)
+trained_favard_gp = train_favard_gp(
+    non_gaussian_input_sample, non_gaussian_input_func, order
+)
 for i in range(start_number + 1, experiment_count):
     # test_points for predictive densities
-    test_points = D.Normal(0.0, 4.0).sample(test_points_shape)
+    test_points = test_input_distribution.sample(test_points_shape)
     test_points_outputs = test_function(test_points)
     print(colored("Current experiment number:{}".format(i), "red"))
-    (
-        gaussian_input_sample,
-        non_gaussian_input_sample,
-    ) = get_training_inputs(sample_shape)
-
-    gaussian_input_func, non_gaussian_input_func = get_funcs(
-        sample_shape, gaussian_input_sample, non_gaussian_input_sample
-    )
 
     # GP zs
     """
     Now that we have a sample from each of the Gaussian processes,
     we can use these as data from which we will extract the ARD parameter.
     """
-    if plot_initial_samples:
-        plt.scatter(gaussian_input_sample, gaussian_input_func)
-        plt.scatter(non_gaussian_input_sample, non_gaussian_input_func)
-        plt.show()
 
     # parameters for the gaussian process _model_
-    order = 15
     if train_gaussian:
         # For each of the function samples, estimate the length_scale parameter
-        trained_gaussian_gp = train_gaussian_gp(
-            gaussian_input_sample, gaussian_input_func, order
-        )
 
-        gaussian_predictive_density = (
-            trained_gaussian_gp.get_marginal_predictive_density(test_points)
+        gaussian_predictive_density = trained_gaussian_gp.get_predictive_density(
+            test_points
         )
         gaussian_predictive_densities = torch.exp(
             gaussian_predictive_density.log_prob(test_points_outputs)
         )
         gaussian_saves = (
-            "./experiment_9_data/exp_9_gaussian_parameters_" + str(i) + ".pt"
+            "./experiment_11_data/single_training/exp_11_gaussian_parameters_"
+            + str(i)
+            + ".pt"
         )
         torch.save(gaussian_predictive_densities, gaussian_saves)
+        print("Gaussian experiment " + str(i) + " saved!")
 
     if train_non_gaussian:
-        trained_non_gaussian_gp = train_non_gaussian_gp(
-            non_gaussian_input_sample, non_gaussian_input_func, order
-        )
-
         non_gaussian_predictive_density = (
-            trained_non_gaussian_gp.get_marginal_predictive_density(test_points)
+            trained_non_gaussian_gp.get_predictive_density(test_points)
         )
         non_gaussian_predictive_densities = torch.exp(
             non_gaussian_predictive_density.log_prob(test_points_outputs)
         )
         non_gaussian_saves = (
-            "./experiment_9_data/exp_9_non_gaussian_parameters_" + str(i) + ".pt"
+            "./experiment_11_data/single_training/exp_11_non_gaussian_parameters_"
+            + str(i)
+            + ".pt"
         )
         torch.save(non_gaussian_predictive_densities, non_gaussian_saves)
+        print("Non-Gaussian experiment " + str(i) + " saved!")
 
     if train_favard:
-        trained_favard_gp = train_favard_gp(
-            non_gaussian_input_sample, non_gaussian_input_func, order
-        )
-        favard_predictive_density = trained_favard_gp.get_marginal_predictive_density(
+        favard_predictive_density = trained_favard_gp.get_predictive_density(
             test_points
         )
         favard_predictive_densities = torch.exp(
             favard_predictive_density.log_prob(test_points_outputs)
         )
-        favard_saves = "./experiment_9_data/exp_9_favard_parameters_" + str(i) + ".pt"
+        favard_saves = (
+            "./experiment_11_data/single_training/exp_11_favard_parameters_"
+            + str(i)
+            + ".pt"
+        )
         torch.save(favard_predictive_densities, favard_saves)
+        print("Favard experiment " + str(i) + " saved!")
+    if plot_initial_samples:
+        plt.scatter(gaussian_input_sample, gaussian_input_func)
+        plt.scatter(non_gaussian_input_sample, non_gaussian_input_func)
+        plt.show()
 
     # gaussian_saves = open("exp_8_gaussian_parameters.pt", "a")
     # non_gaussian_saves = open("exp_8_non_gaussian_parameters.pt", "a")
