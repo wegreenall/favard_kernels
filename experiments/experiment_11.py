@@ -195,10 +195,10 @@ def train_favard_gp(
     return favard_mercer_gp
 
 
-train_gaussian = True
-train_non_gaussian = True
+train_gaussian = False
+train_non_gaussian = False
 train_favard = True
-normal_test_inputs = False
+normal_test_inputs = True
 plot_initial_samples = False
 
 # first, get a sample function from a GP with a given length scale
@@ -214,7 +214,7 @@ kernel_args = {
 experiment_count = 1000
 
 # prepare the general test points for all experiments
-test_points_size = 60
+test_points_size = 5
 test_points_shape = torch.Size([test_points_size])
 if normal_test_inputs:
     # Gaussian
@@ -233,16 +233,19 @@ else:
 # test_points = D.Normal(0.0, 4.0).sample(test_points_shape)
 # test_points_outputs = test_function(test_points)
 
-order = 15
+order = 20
 start_number = get_latest_experiment_number()
 (
     gaussian_input_sample,
     non_gaussian_input_sample,
 ) = get_training_inputs(sample_shape)
 
+# get the data
 gaussian_input_func, non_gaussian_input_func = get_funcs(
     sample_shape, gaussian_input_sample, non_gaussian_input_sample
 )
+
+# train the GPs
 trained_gaussian_gp = train_gaussian_gp(
     gaussian_input_sample, gaussian_input_func, order
 )
@@ -250,6 +253,7 @@ trained_gaussian_gp = train_gaussian_gp(
 trained_non_gaussian_gp = train_non_gaussian_gp(
     non_gaussian_input_sample, non_gaussian_input_func, order
 )
+
 trained_favard_gp = train_favard_gp(
     non_gaussian_input_sample, non_gaussian_input_func, order
 )
@@ -267,13 +271,14 @@ for i in range(start_number + 1, experiment_count):
 
     # parameters for the gaussian process _model_
     if train_gaussian:
-        # For each of the function samples, estimate the length_scale parameter
-
+        """
+        Gaussian inputs
+        """
         gaussian_predictive_density = trained_gaussian_gp.get_predictive_density(
             test_points
         )
-        gaussian_predictive_densities = torch.exp(
-            gaussian_predictive_density.log_prob(test_points_outputs)
+        gaussian_predictive_densities = gaussian_predictive_density.log_prob(
+            test_points_outputs
         )
         gaussian_saves = (
             "./experiment_11_data/single_training/exp_11_gaussian_parameters_"
@@ -284,12 +289,23 @@ for i in range(start_number + 1, experiment_count):
         print("Gaussian experiment " + str(i) + " saved!")
 
     if train_non_gaussian:
+        """
+        Non Gaussian inputs - Mercer functions
+        """
         non_gaussian_predictive_density = (
             trained_non_gaussian_gp.get_predictive_density(test_points)
         )
-        non_gaussian_predictive_densities = torch.exp(
-            non_gaussian_predictive_density.log_prob(test_points_outputs)
+        # non_gaussian_predictive_densities = torch.exp(
+        # non_gaussian_predictive_density.log_prob(test_points_outputs)
+        # )
+        non_gaussian_predictive_densities = non_gaussian_predictive_density.log_prob(
+            test_points_outputs
         )
+        if non_gaussian_predictive_densities > 10:
+            print(
+                "non_gaussian_predictive_densities:", non_gaussian_predictive_densities
+            )
+            # breakpoint()
         non_gaussian_saves = (
             "./experiment_11_data/single_training/exp_11_non_gaussian_parameters_"
             + str(i)
@@ -299,12 +315,17 @@ for i in range(start_number + 1, experiment_count):
         print("Non-Gaussian experiment " + str(i) + " saved!")
 
     if train_favard:
+        """
+        Non Gaussian inputs - Favard functions
+        """
         favard_predictive_density = trained_favard_gp.get_predictive_density(
             test_points
         )
-        favard_predictive_densities = torch.exp(
-            favard_predictive_density.log_prob(test_points_outputs)
+        # torch.exp(
+        favard_predictive_densities = favard_predictive_density.log_prob(
+            test_points_outputs
         )
+        # )
         favard_saves = (
             "./experiment_11_data/single_training/exp_11_favard_parameters_"
             + str(i)

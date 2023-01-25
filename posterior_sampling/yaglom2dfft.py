@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.distributions as D
-from np.fft import fft2
+from numpy.fft import fft2
 from mercergp.kernels import MercerKernel
 from ortho.basis_functions import (
     smooth_exponential_eigenvalues_fasshauer,

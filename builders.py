@@ -72,11 +72,10 @@ def train_favard_params(
 
 def build_favard_gp(
     parameters: dict,
-    eigenvalue_generator: EigenvalueGenerator,
     order: int,
     input_sample: torch.Tensor,
-    output_sample: torch.Tensor,
     weight_function: Callable,
+    eigenvalue_generator: EigenvalueGenerator,
     dim=1,
 ) -> MercerGP:
     """
@@ -85,6 +84,8 @@ def build_favard_gp(
 
     param eigenvalue_generator: a callable that returns, a tensor of "order"
             eigenvalues, with input being the parameter dictionary 'parameters'
+    param weight_function: a function w(x). When constructing the basis,
+                           will have the square root applied to get w^{1/2}
     """
     # get the corresponding orthonormal basis.
     # weight_function

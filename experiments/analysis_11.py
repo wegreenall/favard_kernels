@@ -61,9 +61,9 @@ if __name__ == "__main__":
     successes = 0
     for number in numbers:
         gaussian_data, non_gaussian_data, favard_data = read_files(number, prefix)
-        # print(colored(gaussian_data, "blue"))
-        # print(colored(non_gaussian_data, "yellow"))
-        # print(colored(favard_data, "magenta"))
+        print(colored(gaussian_data, "blue"))
+        print(colored(non_gaussian_data, "yellow"))
+        print(colored(favard_data, "magenta"))
         if gaussian_data is not None:
             gaussian_sum = sum(gaussian_data).item()
             non_gaussian_sum = sum(non_gaussian_data).item()
