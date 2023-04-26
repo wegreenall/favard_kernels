@@ -59,7 +59,9 @@ def get_normal_density_log(
     print("determinant:", torch.exp(-term_2))
     inverse_matrix = torch.inverse(covariance_matrix)
     term_3 = -0.5 * (
-        (value_vector - mean_vector).t() @ inverse_matrix @ (value_vector - mean_vector)
+        (value_vector - mean_vector).t()
+        @ inverse_matrix
+        @ (value_vector - mean_vector)
     )
     return term_1 + term_2 + term_3
 
@@ -84,7 +86,9 @@ def get_predictive_density_se_kernel(
     outputs: torch.Tensor,
 ) -> D.Distribution:
     # calculate the mean
-    posterior_predictive_mean = get_posterior_mean(kernel, test_points, inputs, outputs)
+    posterior_predictive_mean = get_posterior_mean(
+        kernel, test_points, inputs, outputs
+    )
 
     # now calculate the variance
     posterior_predictive_variance = (
@@ -96,7 +100,11 @@ def get_predictive_density_se_kernel(
     )
 
     # add jitter for positive definiteness
-    posterior_predictive_variance += 0.00001 * torch.eye(len(test_points))
+    # posterior_predictive_variance += 0.00001 * torch.eye(len(test_points))
+
+    posterior_predictive_variance += kernel.kernel_args[
+        "noise_parameter"
+    ] * torch.eye(len(test_points))
     try:
         distribution = D.MultivariateNormal(
             posterior_predictive_mean,
@@ -115,7 +123,8 @@ if __name__ == "__main__":
     """
     The program begins here
     """
-    normal_test_inputs = True
+    normal_test_inputs = False
+    save = True
     # metaparameters
     experiment_count = 1000
     mixtures_count = 6
@@ -135,9 +144,7 @@ if __name__ == "__main__":
         "noise_parameter": sigma_e,
         "precision_parameter": epsilon,
     }
-    variance = (
-        0.8  # the variance of each of the components of the experimental mixtures.
-    )
+    variance = 0.8  # the variance of each of the components of the experimental mixtures.
     test_inputs_sample_size = 15
     test_input_sample_shape = torch.Size([test_inputs_sample_size])
     if normal_test_inputs:
@@ -154,6 +161,8 @@ if __name__ == "__main__":
 
     se_kernel = SmoothExponentialKernel(kernel_args)
     kls = torch.zeros(experiment_count, mixtures_count, 2)
+    favard_failures = torch.zeros(experiment_count, mixtures_count)
+    mercer_failures = torch.zeros(experiment_count, mixtures_count)
     for i in range(experiment_count):
         for j in range(mixtures_count):
             print("Experiment {} in progress!".format((str(i), str(j))))
@@ -169,12 +178,14 @@ if __name__ == "__main__":
             component_distribution = D.Normal(
                 torch.Tensor([-mean, mean]), torch.Tensor([variance, variance])
             )
-            dist = D.MixtureSameFamily(mixing_distribution, component_distribution)
+            dist = D.MixtureSameFamily(
+                mixing_distribution, component_distribution
+            )
 
             inputs = dist.sample([sample_size])
-            outputs = test_function(inputs) + torch.distributions.Normal(0, 1).sample(
-                inputs.shape
-            )
+            outputs = test_function(inputs) + torch.distributions.Normal(
+                0, 1
+            ).sample(inputs.shape)
 
             # Full kernel
             true_predictive_density = get_predictive_density_se_kernel(
@@ -182,8 +193,10 @@ if __name__ == "__main__":
             )
 
             # shared parameters
-            eigenvalues = smooth_exponential_eigenvalues_fasshauer(order, kernel_args)
-            eigenvalue_generator = SmoothExponentialFasshauer(order)
+            eigenvalues = smooth_exponential_eigenvalues_fasshauer(
+                order, kernel_args
+            )
+            eigenvalue_generator = SmoothExponentialFasshauer(order, 1)
 
             # Mercer kernel
             mercer_basis = Basis(
@@ -200,6 +213,7 @@ if __name__ == "__main__":
                     test_inputs_sample
                 )
             except ValueError:
+                mercer_failures[i, j] = 1
                 print(
                     "Failed to acquire Mercer predictive density for experiment {} ".format(
                         (str(i), str(j))
@@ -220,6 +234,7 @@ if __name__ == "__main__":
                     test_inputs_sample
                 )
             except ValueError:
+                favard_failures[i, j] = 1
                 print(
                     "Failed to acquire Favard predictive density for experiment {} ".format(
                         (str(i), str(j))
@@ -242,7 +257,17 @@ if __name__ == "__main__":
             print(colored(favard_kl, "magenta"))
             kls[i, j, 0] = mercer_kl
             kls[i, j, 1] = favard_kl
-    if normal_test_inputs:
-        torch.save(kls, "./experiment_12_data/kl_divergences_normal_test_inputs.pt")
-    else:
-        torch.save(kls, "./experiment_12_data/kl_divergences_mixture_test_inputs.pt")
+    print("mercer failures:", mercer_failures.sum(dim=0) / experiment_count)
+    print("favard failures:", favard_failures.sum(dim=0) / experiment_count)
+    # breakpoint()
+    if save:
+        if normal_test_inputs:
+            torch.save(
+                kls,
+                "./experiment_12_data/kl_divergences_normal_test_inputs.pt",
+            )
+        else:
+            torch.save(
+                kls,
+                "./experiment_12_data/kl_divergences_mixture_test_inputs.pt",
+            )

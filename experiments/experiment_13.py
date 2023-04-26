@@ -37,7 +37,7 @@ This experiment generates the predictive density of:
     - the true GP with full kernel
     - the Mercer GP, 
     - the Favard GP, 
-under the inputs:
+under the inputs: l
     - Normal(0, 1)
     - A sequence of ever more "distant" mixture input distributions.
 and compares the KL divergences
@@ -84,7 +84,9 @@ def get_predictive_density_se_kernel(
     outputs: torch.Tensor,
 ) -> D.Distribution:
     # calculate the mean
-    posterior_predictive_mean = get_posterior_mean(kernel, test_points, inputs, outputs)
+    posterior_predictive_mean = get_posterior_mean(
+        kernel, test_points, inputs, outputs
+    )
 
     # now calculate the variance
     posterior_predictive_variance = (
@@ -151,9 +153,7 @@ if __name__ == "__main__":
     # }
     # mercer_kernel_args = (mercer_kernel_args_1, mercer_kernel_args_2)
 
-    variance = (
-        0.8  # the variance of each of the components of the experimental mixtures.
-    )
+    variance = 0.8  # the variance of each of the components of the experimental mixtures.
     test_inputs_sample_size = 5
     test_input_sample_shape = torch.Size([test_inputs_sample_size])
     if normal_test_inputs:
@@ -202,9 +202,9 @@ if __name__ == "__main__":
             )
 
             inputs = input_dist.sample([sample_size])
-            outputs = test_function(inputs) + torch.distributions.Normal(0, 1).sample(
-                inputs.shape
-            )
+            outputs = test_function(inputs) + torch.distributions.Normal(
+                0, 1
+            ).sample(inputs.shape)
 
             # Full kernel
             true_predictive_density = get_predictive_density_se_kernel(
@@ -276,7 +276,11 @@ if __name__ == "__main__":
             breakpoint()
             favard_gp.add_data(inputs, outputs)
             try:
-                print(colored("About to get the Favard predictive density", "red"))
+                print(
+                    colored(
+                        "About to get the Favard predictive density", "red"
+                    )
+                )
                 favard_predictive_density = favard_gp.get_predictive_density(
                     test_inputs_sample
                 )
@@ -305,6 +309,10 @@ if __name__ == "__main__":
             kls[i, j, 0] = mercer_kl
             kls[i, j, 1] = favard_kl
     if normal_test_inputs:
-        torch.save(kls, "./experiment_13_data/kl_divergences_normal_test_inputs.pt")
+        torch.save(
+            kls, "./experiment_13_data/kl_divergences_normal_test_inputs.pt"
+        )
     else:
-        torch.save(kls, "./experiment_13_data/kl_divergences_mixture_test_inputs.pt")
+        torch.save(
+            kls, "./experiment_13_data/kl_divergences_mixture_test_inputs.pt"
+        )

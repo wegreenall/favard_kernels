@@ -11,7 +11,7 @@ def test_function(x: torch.Tensor) -> torch.Tensor:
 
 
 def weight_function(input: torch.Tensor):
-    return torch.exp(-(input ** 2) / 2)
+    return torch.exp(-(input ** 2) / 4)
 
 
 def get_training_inputs(sample_shape):
@@ -24,7 +24,9 @@ def get_training_inputs(sample_shape):
     """
     # input distributions
     # Gaussian
-    gaussian_input_distribution = D.Normal(torch.Tensor([0.0]), torch.Tensor([1.0]))
+    gaussian_input_distribution = D.Normal(
+        torch.Tensor([0.0]), torch.Tensor([1.0])
+    )
 
     # non-Gaussian
     mixing_distribution = D.Categorical(torch.Tensor([0.2, 0.8]))

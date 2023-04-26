@@ -67,7 +67,9 @@ Construct the input/output samples
 """
 sample_size = 400
 sample_shape = torch.Size([sample_size])
-noise_sample = D.Normal(0.0, true_noise_parameter).sample(sample_shape).squeeze()
+noise_sample = (
+    D.Normal(0.0, true_noise_parameter).sample(sample_shape).squeeze()
+)
 mean_vector = torch.Tensor([-0.0, 3.0])
 variance_vector = torch.Tensor([1.0, 1.0])
 core_dist = D.Normal(mean_vector, variance_vector)
@@ -83,7 +85,11 @@ rff_gp = SmoothExponentialRFFGP(500 * order, 1)
 output_sample = test_function(input_sample) + noise_sample
 
 optimiser = torch.optim.Adam(
-    [param for param in parameters.values() if isinstance(param, torch.Tensor)],
+    [
+        param
+        for param in parameters.values()
+        if isinstance(param, torch.Tensor)
+    ],
     lr=0.001,
 )
 favard_gp = build_favard_gp(
@@ -93,7 +99,7 @@ favard_gp = build_favard_gp(
     input_sample,
     output_sample,
     weight_function,
-    dim,
+    1,
 )
 # mercer_gp.add_data(input_sample, residual_sample)
 

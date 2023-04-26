@@ -21,7 +21,11 @@ from mercergp.eigenvalue_gen import (
 # from mercergp.kernels import SmoothExponentialKernel, MercerKernel
 from ortho.builders import get_orthonormal_basis_from_sample
 from termcolor import colored
-from experiment_functions import test_function, weight_function, get_training_inputs
+from experiment_functions import (
+    test_function,
+    weight_function,
+    get_training_inputs,
+)
 
 # from ortho.basis_functions import OrthonormalBasis
 
@@ -66,7 +70,9 @@ def get_funcs(
     ).sample(sample_shape)
 
     gaussian_input_func = test_function(gaussian_input_sample) + noise_sample
-    non_gaussian_input_func = test_function(non_gaussian_input_sample) + noise_sample
+    non_gaussian_input_func = (
+        test_function(non_gaussian_input_sample) + noise_sample
+    )
     return gaussian_input_func, non_gaussian_input_func
 
 
@@ -79,7 +85,9 @@ def train_gaussian_gp(gaussian_input_sample, gaussian_output_sample, order):
     gaussian_initial_noise_parameter.requires_grad = True
     gaussian_parameters = {
         "noise_parameter": gaussian_initial_noise_parameter,
-        "precision_parameter": torch.Tensor([1 / torch.std(gaussian_input_sample)]),
+        "precision_parameter": torch.Tensor(
+            [1 / torch.std(gaussian_input_sample)]
+        ),
         "ard_parameter": gaussian_initial_ard_parameter,
     }
     gaussian_optimiser = torch.optim.Adam(
@@ -114,7 +122,9 @@ def train_non_gaussian_gp(
     non_gaussian_parameters = {
         "noise_parameter": non_gaussian_initial_noise_parameter,
         # "precision_parameter": non_gaussian_initial_precision_parameter,
-        "precision_parameter": torch.Tensor([1 / torch.std(non_gaussian_input_sample)]),
+        "precision_parameter": torch.Tensor(
+            [1 / torch.std(non_gaussian_input_sample)]
+        ),
         "ard_parameter": non_gaussian_initial_ard_parameter,
     }
     non_gaussian_optimiser = torch.optim.Adam(
@@ -153,7 +163,9 @@ def train_favard_gp(
     favard_parameters = {
         "noise_parameter": favard_initial_noise_parameter,
         # "precision_parameter": favard_initial_precision_parameter,
-        "precision_parameter": torch.Tensor([1 / torch.std(non_gaussian_input_sample)]),
+        "precision_parameter": torch.Tensor(
+            [1 / torch.std(non_gaussian_input_sample)]
+        ),
         "ard_parameter": favard_initial_ard_parameter,
         "degree": 6,  # the eigenvalue polynomial exponent for the decay
     }
@@ -189,7 +201,9 @@ def train_favard_gp(
     favard_mercer_gp = build_mercer_gp(
         trained_favard_params, order, basis, smooth_exponential_eigenvalues
     )
-    favard_mercer_gp.add_data(non_gaussian_input_sample, non_gaussian_output_sample)
+    favard_mercer_gp.add_data(
+        non_gaussian_input_sample, non_gaussian_output_sample
+    )
     return favard_mercer_gp
 
 
@@ -266,13 +280,17 @@ for i in range(start_number + 1, experiment_count):
         )
 
         non_gaussian_predictive_density = (
-            trained_non_gaussian_gp.get_marginal_predictive_density(test_points)
+            trained_non_gaussian_gp.get_marginal_predictive_density(
+                test_points
+            )
         )
         non_gaussian_predictive_densities = torch.exp(
             non_gaussian_predictive_density.log_prob(test_points_outputs)
         )
         non_gaussian_saves = (
-            "./experiment_9_data/exp_9_non_gaussian_parameters_" + str(i) + ".pt"
+            "./experiment_9_data/exp_9_non_gaussian_parameters_"
+            + str(i)
+            + ".pt"
         )
         torch.save(non_gaussian_predictive_densities, non_gaussian_saves)
 
@@ -280,13 +298,15 @@ for i in range(start_number + 1, experiment_count):
         trained_favard_gp = train_favard_gp(
             non_gaussian_input_sample, non_gaussian_input_func, order
         )
-        favard_predictive_density = trained_favard_gp.get_marginal_predictive_density(
-            test_points
+        favard_predictive_density = (
+            trained_favard_gp.get_marginal_predictive_density(test_points)
         )
         favard_predictive_densities = torch.exp(
             favard_predictive_density.log_prob(test_points_outputs)
         )
-        favard_saves = "./experiment_9_data/exp_9_favard_parameters_" + str(i) + ".pt"
+        favard_saves = (
+            "./experiment_9_data/exp_9_favard_parameters_" + str(i) + ".pt"
+        )
         torch.save(favard_predictive_densities, favard_saves)
 
     # gaussian_saves = open("exp_8_gaussian_parameters.pt", "a")
