@@ -1,7 +1,7 @@
 import torch
 import torch.autograd as autograd
 from ortho.orthopoly import OrthonormalPolynomial
-from ortho.builders import get_orthonormal_basis_from_sample
+from ortho.builders import OrthoBuilder
 from ortho.measure import MaximalEntropyDensity
 from ortho.basis_functions import OrthonormalBasis
 from mercergp.MGP import MercerKernel, MercerGP
@@ -23,8 +23,12 @@ def train_favard_params(
 ) -> dict:
     """ """
 
-    # breakpoint()
-    basis = get_orthonormal_basis_from_sample(input_sample, weight_function, order)
+    basis = (
+        OrthoBuilder(order)
+        .set_sample(input_sample)
+        .set_weight_function(weight_function)
+        .get_orthonormal_basis()
+    )
 
     # x = torch.tensor(0.0)
     x = torch.Tensor([0.0])
@@ -89,7 +93,15 @@ def build_favard_gp(
     """
     # get the corresponding orthonormal basis.
     # weight_function
-    basis = get_orthonormal_basis_from_sample(input_sample, weight_function, order)
+    # basis = get_orthonormal_basis_from_sample(
+    # input_sample, weight_function, order
+    # )
+    basis = (
+        OrthoBuilder(order)
+        .set_sample(input_sample)
+        .set_weight_function(weight_function)
+        .get_orthonormal_basis()
+    )
     eigenvalues = eigenvalue_generator(parameters)
 
     # build the kernel

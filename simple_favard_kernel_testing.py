@@ -4,7 +4,9 @@ import mercergp.likelihood as mgp_likelihood
 import mercergp.builders as mgp_builders
 
 import ortho.basis_functions as bf
+
 import ortho.builders as ortho_builders
+from ortho.builders import OrthoBuilder
 from ortho.orthopoly import OrthonormalPolynomial
 import torch
 import torch.distributions as D
