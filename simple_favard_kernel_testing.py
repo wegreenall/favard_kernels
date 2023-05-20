@@ -50,7 +50,7 @@ def weight_function(x: torch.Tensor) -> torch.Tensor:
     Evaluates the weight function. Usually, e^{-lx^2}
     """
     length = torch.tensor(1.0)
-    return torch.exp(-length * (x ** 2))
+    return torch.exp(-length * (x**2))
 
 
 def test_function(x: torch.Tensor) -> torch.Tensor:
@@ -125,7 +125,7 @@ else:
             (favard_input_measure.sample(sample_shape).squeeze())
             - favard_alpha / favard_beta
         )
-        / (favard_alpha / (favard_beta ** 2))
+        / (favard_alpha / (favard_beta**2))
         # * 20
     )
 
