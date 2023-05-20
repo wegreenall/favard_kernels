@@ -111,3 +111,30 @@ def build_favard_gp(
     mgp = MercerGP(basis, order, dim, kernel)
     # breakpoint()
     return mgp
+
+
+if __name__ == "__main__":
+    """
+    Test here whether it is simple to get the Favard eigenvalues.
+    """
+    # set the parameters
+    order = 10
+    x = torch.Tensor([0.0])
+    x.requires_grad = True
+    basis = (
+        OrthoBuilder(order)
+        .set_sample(input_sample)
+        .set_weight_function(weight_function)
+        .get_orthonormal_basis()
+    )
+    f0 = basis(x)
+    # breakpoint()
+    df0 = autograd.functional.jacobian(basis, x).squeeze(2)
+    d2f0 = f0.clone()  # autograd.grad(df0, x)[0]
+    breakpoint()
+    assert (
+        f0.shape == df0.shape == d2f0.shape
+    ), "derivative and second derivative are the wrong shape : ASSRT STATEMENT"
+
+    # build the Favard eigenvalue generator
+    eigenvalue_generator = FavardEigenvalues(order, f0, df0, d2f0)
