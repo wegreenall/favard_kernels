@@ -8,7 +8,10 @@ from mercergp.posterior_sampling import histogram_spectral_distribution
 from mercergp.kernels import MercerKernel
 from mercergp.eigenvalue_gen import SmoothExponentialFasshauer
 from mercergp.posterior_sampling import histogram_spectral_distribution
-from mercergp.builders import build_mercer_gp_fourier_posterior, build_mercer_gp
+from mercergp.builders import (
+    build_mercer_gp_fourier_posterior,
+    build_mercer_gp,
+)
 from favard_kernels.builders import build_favard_gp
 import tikzplotlib
 
@@ -47,7 +50,9 @@ Part 1: Some random samples that exhibit the variance starvation
 """
 # inputs and outputs
 inputs = D.Normal(0.0, 1.0).sample(test_sample_shape)
-outputs = test_function(inputs) + sigma_e * D.Normal(0.0, 1.0).sample(inputs.shape)
+outputs = test_function(inputs) + sigma_e * D.Normal(0.0, 1.0).sample(
+    inputs.shape
+)
 eigenvalue_generator = SmoothExponentialFasshauer(order)
 basis = bf.Basis(
     bf.smooth_exponential_basis_fasshauer,
@@ -59,7 +64,7 @@ mercer_gp = build_favard_gp(
     kernel_args,
     order,
     inputs,
-    lambda x: torch.exp(-(x ** 2)),
+    lambda x: torch.exp(-(x**2)),
     # lambda x: torch.ones(x.shape),
     eigenvalue_generator,
 )
@@ -177,6 +182,7 @@ ax.legend(
     # fontsize="x-small",
 )
 
+plt.axvline(x=true_order, color="r", linestyle="--")
 tikzplotlib.save(
     "/home/william/phd/tex_projects/favard_kernels_icml/diagrams/posteriorsample2.tex",
     axis_height="\\posteriorsamplediagramheight",
