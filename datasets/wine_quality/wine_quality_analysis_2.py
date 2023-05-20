@@ -1,4 +1,5 @@
 import torch
+import torch.distributions as D
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -20,6 +21,7 @@ from ortho.builders import OrthoBuilder
 from termcolor import colored
 import pickle
 from typing import List, Tuple
+import random
 
 
 class GPType(Enum):
@@ -249,14 +251,39 @@ def get_GP(
     return gp
 
 
+def get_randomized_data(
+    total_sulphur, free_sulphur, test_input_count, input_count
+):
+    """
+    Selects test_input_count, input_count values from the input and output data and returns them.
+
+    """
+    # to ensure that there are not repeated indices, we sample without
+    # replacement the whole set. Then, split into pieces.
+    sampled_inputs: List[int] = random.sample(
+        range(len(total_sulphur)),
+        test_random_sample_point_count + input_random_sample_point_count,
+    )
+    input_point_indices = sampled_inputs[test_random_sample_point_count:]
+    test_points_indices = sampled_inputs[:test_random_sample_point_count]
+    input_points = total_sulphur[input_point_indices]
+    output_points = free_sulphur[input_point_indices]
+
+    test_input_points = total_sulphur[test_points_indices]
+    test_output_points = free_sulphur[test_points_indices]
+    return test_input_points, test_output_points, input_points, output_points
+
+
 def compare_gps(
     favard_gp,
     mercer_gp,
-    input_sample,
-    output_sample,
+    total_sulphur,  # the inputs
+    free_sulphur,  # the outputs
     empirical_experiment_count,
-    random_sample_point_count,
-):
+    test_input_count,
+    input_count,
+    # random_sample_point_count,
+) -> Tuple[list, list]:
     """
     Now that we have the parameters for the Gaussian processes,
     compare the two using predictive densities.
@@ -268,24 +295,35 @@ def compare_gps(
         if i % 100 == 0:
             print("Iteration:", i)
 
-        # get a set of random indices of datapoints
-        random_indices = torch.randint(
-            0, len(input_sample), (random_sample_point_count,)
+        """
+        At each iteration, we produce a random sample of indices
+        for the _inputs_, and a random sample of indices from
+        for the _test inputs_, that is not the same
+        """
+        (
+            test_input_sample,
+            test_output_sample,
+            inputs,
+            outputs,
+        ) = get_randomized_data(
+            total_sulphur, free_sulphur, test_input_count, input_count
         )
-
+        # set the gps to have these data
+        favard_gp.set_data(inputs, outputs)
+        mercer_gp.set_data(inputs, outputs)
         # get the predictive densities
-        favard_predictive_density = favard_gp.get_predictive_density(
-            input_sample[random_indices]
-        )
         mercer_predictive_density = mercer_gp.get_predictive_density(
-            input_sample[random_indices]
+            test_input_sample
+        )
+        favard_predictive_density = favard_gp.get_predictive_density(
+            test_input_sample
         )
         # get the predictive density values
-        favard_predictive_density_values = favard_predictive_density.log_prob(
-            output_sample[random_indices]
-        )
         mercer_predictive_density_values = mercer_predictive_density.log_prob(
-            output_sample[random_indices]
+            test_output_sample
+        )
+        favard_predictive_density_values = favard_predictive_density.log_prob(
+            test_output_sample
         )
         # plt.scatter(
         # input_sample[random_indices], output_sample[random_indices]
@@ -314,15 +352,17 @@ if __name__ == "__main__":
     # get the data
     do_hists = False
     pretrained = True
-    empirical_experiment_count = 100
-    random_sample_point_count = 50
+    empirical_experiment_count = 1000
+    # random_sample_point_count = 50
     dataset = DataSet.BOTH
     if dataset == DataSet.RED:
-        free_sulphur, total_sulphur = get_data(DataSet.RED, standardise=True)
+        free_sulphur, total_sulphur = get_data(DataSet.RED, standardise=False)
     elif dataset == DataSet.WHITE:
-        free_sulphur, total_sulphur = get_data(DataSet.WHITE, standardise=True)
+        free_sulphur, total_sulphur = get_data(
+            DataSet.WHITE, standardise=False
+        )
     elif dataset == DataSet.BOTH:
-        free_sulphur, total_sulphur = get_data(DataSet.BOTH, standardise=True)
+        free_sulphur, total_sulphur = get_data(DataSet.BOTH, standardise=False)
 
     # rfree_sulphur, rtotal_sulphur = get_data(DataSet.RED, standardise=True)
     # wfree_sulphur, wtotal_sulphur = get_data(DataSet.WHITE, standardise=True)
@@ -353,13 +393,13 @@ if __name__ == "__main__":
             mercer_trained_parameters,
             mercer_trained_noise,
         ) = get_parameters(
-            order, free_sulphur, total_sulphur, KernelType.MERCER
+            order, total_sulphur, free_sulphur, KernelType.MERCER
         )
         (
             favard_trained_parameters,
             favard_trained_noise,
         ) = get_parameters(
-            order, free_sulphur, total_sulphur, KernelType.FAVARD
+            order, total_sulphur, free_sulphur, KernelType.FAVARD
         )
 
         # now save the parameters
@@ -403,6 +443,15 @@ if __name__ == "__main__":
             "analysis_2_data/favard_trained_noise_{}.pt".format(code)
         )
 
+    """
+    Obviously, to be valid we need to take a subset of the inputs and use them
+    as input data; and a different subset, and use them as test data.
+    """
+    test_random_sample_point_count = 50
+    input_random_sample_point_count = 600
+
+    # print("Shape of input_points:", input_points.shape)
+    # print("Shape of output_points:", output_points.shape)
     mercer_gp = get_GP(
         order,
         mercer_trained_parameters,
@@ -421,15 +470,15 @@ if __name__ == "__main__":
         GPType.STANDARD,
         KernelType.FAVARD,
     )
-    # let's test the kernel for nonsense
-
     favard_predictive_densities, mercer_predictive_densities = compare_gps(
         favard_gp,
         mercer_gp,
-        free_sulphur,
         total_sulphur,
+        free_sulphur,
         empirical_experiment_count,
-        random_sample_point_count,
+        test_random_sample_point_count,
+        input_random_sample_point_count,
+        # random_sample_point_count,
     )
     if dataset == DataSet.RED:
         pickle.dump(favard_predictive_densities, open("red_wine_pd.p", "wb"))
