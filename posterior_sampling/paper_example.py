@@ -24,6 +24,7 @@ def test_function(x: torch.Tensor) -> torch.Tensor:
 
 
 # plotting
+save_tikz = False
 axis_width = 10
 x_axis = torch.linspace(-axis_width, axis_width, 1000)  # .unsqueeze(1)
 test_sample_size = 2000
@@ -32,10 +33,10 @@ marker_value = "."
 marker_size = 0.5
 
 # hyperparameters
-order = 12
+order = 8
 dimension = 1
-l_se = torch.Tensor([[3.0]])
-sigma_se = torch.Tensor([1.0])
+l_se = torch.Tensor([[2.2]])
+sigma_se = torch.Tensor([2.0])
 prec = torch.Tensor([1.0])
 sigma_e = torch.Tensor([0.3])
 kernel_args = {
@@ -60,6 +61,7 @@ basis = bf.Basis(
     order,
     kernel_args,
 )
+print("about to build the mercer gp")
 mercer_gp = build_favard_gp(
     kernel_args,
     order,
@@ -73,7 +75,7 @@ mercer_gp.add_data(inputs, outputs)
 # plt.plot(x_axis, generated_basis(x_axis))
 # plt.plot(x_axis, basis(x_axis), color="red")
 # plt.show()
-
+# breakpoint()
 plt.rcParams["text.usetex"] = True
 fig, ax2 = plt.subplots()
 ax2.set_xlabel(r"$\mathcal{X}$")
@@ -85,6 +87,8 @@ for i in range(5):
         x_axis,
         sample(x_axis),
     )
+posterior_mean = mercer_gp.get_posterior_mean()
+ax2.plot(x_axis, posterior_mean(x_axis), color="black")
 # plt.plot(x_axis, sample(x_axis))
 # plt.scatter(inputs, outputs, marker="+")
 # plt.show()
@@ -97,11 +101,14 @@ for i in range(5):
 # "Posterior mean",
 # )
 # )
-tikzplotlib.save(
-    "/home/william/phd/tex_projects/favard_kernels_icml/diagrams/posteriorsample1.tex",
-    axis_height="\\posteriorsamplediagramheight",
-    axis_width="\\posteriorsamplediagramwidth",
-)
+if save_tikz:
+    tikzplotlib.save(
+        "/home/william/phd/tex_projects/favard_kernels_icml/diagrams/posteriorsample1.tex",
+        axis_height="\\posteriorsamplediagramheight",
+        axis_width="\\posteriorsamplediagramwidth",
+    )
+else:
+    plt.show()
 # plt.savefig(
 # "/home/william/phd/tex_projects/favard_kernels_icml/diagrams/posteriorsamples1.eps",
 # format="eps",
@@ -115,8 +122,8 @@ order = 8
 rff_order = 4700
 rff_frequency = 1000
 dimension = 1
-l_se = torch.Tensor([[0.70]])
-sigma_se = torch.Tensor([1.0])
+l_se = torch.Tensor([[1.70]])
+sigma_se = torch.Tensor([2.0])
 prec = torch.Tensor([1.0])
 sigma_e = torch.Tensor([0.3])
 kernel_args = {
@@ -136,14 +143,15 @@ basis = bf.Basis(
 eigenvalue_generator = SmoothExponentialFasshauer(order)
 # mercer
 # mercer with fourter posterior
+print("about to build the fourier posterior gp")
 mercer_gp_fourier_posterior = build_mercer_gp_fourier_posterior(
     kernel_args,
     order,
-    rff_order,
     basis,
     eigenvalue_generator,
     frequency=rff_frequency,
     spectral_distribution_type="gaussian",
+    rff_order=rff_order,
 )
 
 # mercer_gp.add_data(inputs, outputs)
@@ -182,12 +190,15 @@ ax.legend(
     # fontsize="x-small",
 )
 
-plt.axvline(x=true_order, color="r", linestyle="--")
-tikzplotlib.save(
-    "/home/william/phd/tex_projects/favard_kernels_icml/diagrams/posteriorsample2.tex",
-    axis_height="\\posteriorsamplediagramheight",
-    axis_width="\\posteriorsamplediagramwidth",
-)
+# plt.axvline(x=true_order, color="r", linestyle="--")
+if save_tikz:
+    tikzplotlib.save(
+        "/home/william/phd/tex_projects/favard_kernels_icml/diagrams/posteriorsample2.tex",
+        axis_height="\\posteriorsamplediagramheight",
+        axis_width="\\posteriorsamplediagramwidth",
+    )
+else:
+    plt.show()
 # plt.savefig(
 # "/home/william/phd/tex_projects/favard_kernels_icml/diagrams/posteriorsample.eps",
 # format="eps",

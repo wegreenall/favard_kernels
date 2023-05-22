@@ -11,6 +11,7 @@ import tikzplotlib
 
 run_calculations = True
 relative = False
+save_tikz = False
 
 order = 11
 eigenvalue_generator = SmoothExponentialFasshauer(order)
@@ -19,6 +20,7 @@ kernel_args = {
     "precision_parameter": torch.Tensor([2.0]),
     "noise_parameter": torch.Tensor([0.1]),
     "ard_parameter": torch.Tensor([[1.0]]),
+    "variance_parameter": torch.Tensor([1.0]),
 }
 eigenvalues = eigenvalue_generator(kernel_args)
 exponents = torch.linspace(0, order - 1, order)
@@ -73,12 +75,15 @@ if run_calculations:
             # breakpoint()
             if relative:
                 results[rep, :, j, 0] = (
-                    torch.abs(eigenvalues - gaussian_input_eigenvalues_estimate.real)
+                    torch.abs(
+                        eigenvalues - gaussian_input_eigenvalues_estimate.real
+                    )
                     / eigenvalues
                 )
                 results[rep, :, j, 1] = (
                     torch.abs(
-                        eigenvalues - non_gaussian_input_eigenvalues_estimate.real
+                        eigenvalues
+                        - non_gaussian_input_eigenvalues_estimate.real
                     )
                     / eigenvalues
                 )
@@ -103,8 +108,12 @@ else:
     loaded_results = torch.load("./eigenvalues_samples.pt")
 for j, size in enumerate(sample_sizes):
     gaussian_std = torch.std(loaded_results[:, :, j, 0], dim=0)
-    gaussian_lower_quantile = torch.quantile(loaded_results[:, :, j, 0], 0.25, dim=0)
-    gaussian_upper_quantile = torch.quantile(loaded_results[:, :, j, 0], 0.75, dim=0)
+    gaussian_lower_quantile = torch.quantile(
+        loaded_results[:, :, j, 0], 0.25, dim=0
+    )
+    gaussian_upper_quantile = torch.quantile(
+        loaded_results[:, :, j, 0], 0.75, dim=0
+    )
     non_gaussian_std = torch.std(loaded_results[:, :, j, 1], dim=0)
     non_gaussian_lower_quantile = torch.quantile(
         loaded_results[:, :, j, 1], 0.25, dim=0
@@ -140,13 +149,14 @@ for j, size in enumerate(sample_sizes):
         non_gaussian_lower_quantile,
         linestyle="--",
     )
-    tikzplotlib.save(
-        "/home/william/phd/tex_projects/favard_kernels_icml/diagrams/eigenvalueconsistencydiagram"
-        + str(j)
-        + ".tex",
-        axis_height="\\eigenvalueconsistencydiagramheight",
-        axis_width="\\eigenvalueconsistencydiagramwidth",
-    )
+    if save_tikz:
+        tikzplotlib.save(
+            "/eigenvalueconsistencydiagram" + str(j) + ".tex",
+            axis_height="\\eigenvalueconsistencydiagramheight",
+            axis_width="\\eigenvalueconsistencydiagramwidth",
+        )
+    else:
+        plt.show()
     # plt.savefig(
     # "/home/william/phd/tex_projects/favard_kernels_icml/diagrams/eigenvalueconsistencydiagram"
     # + str(j)
