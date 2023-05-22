@@ -11,16 +11,16 @@ A superset of the dependencies can be found in dependencies.txt, which contains
 a dump of pipdeptree on this project.
 
 # Wine data
-To run the wine data experiments, use "datasets/wine_quality/wine_quality_analysis_2.py". 
+To run the wine data experiments, use `datasets/wine_quality/wine_quality_analysis_2.py`. 
 In the code, changed the pretrained and precompared flags to False, and run.
 
 # Formula 1 data
-To run the wine data experiments, use "datasets/formula1/analysis_2.py". 
+To run the wine data experiments, use `datasets/formula1/analysis_2.py`. 
 In the code, changed the pretrained and precompared flags to False, and run.
 
 # Eigenvalue consistency
 Code for generation of the eigenvalue consistency diagram can be found in 
-`./eigenvalue_consistency/`; run the file "eigenvalue_consistency_diagram.py".
+`./eigenvalue_consistency/`; run the file `eigenvalue_consistency_diagram.py`.
 
 
 # Posterior Sampling
