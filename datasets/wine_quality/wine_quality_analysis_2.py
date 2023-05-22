@@ -22,6 +22,7 @@ from termcolor import colored
 import pickle
 from typing import List, Tuple
 import random
+import tikzplotlib
 
 
 class GPType(Enum):
@@ -172,11 +173,11 @@ def get_parameters(
         input_sample,
         output_sample,
         eigenvalue_generator,
-        param_learning_rate=0.00001,
-        sigma_learning_rate=0.00001,
+        param_learning_rate=0.0001,
+        sigma_learning_rate=0.0001,
     )
     trained_noise, trained_parameters = likelihood.fit(
-        initial_noise, initial_parameters, max_iterations=5000
+        initial_noise, initial_parameters, max_iterations=25000
     )
     return trained_parameters, trained_noise
 
@@ -227,7 +228,6 @@ def get_GP(
         # (
         # trained_parameters
         # )
-        breakpoint()
         if gp_type == GPType.STANDARD:
             gp = build_mercer_gp(
                 trained_parameters,
@@ -352,9 +352,18 @@ if __name__ == "__main__":
     # get the data
     do_hists = False
     pretrained = True
+    precompared = True
+    save_tikz = True
     empirical_experiment_count = 1000
     # random_sample_point_count = 50
     dataset = DataSet.BOTH
+    if dataset == DataSet.BOTH:
+        dataset_name = "total"
+    elif dataset == DataSet.RED:
+        dataset_name = "red"
+    elif dataset == DataSet.WHITE:
+        dataset_name = "white"
+
     if dataset == DataSet.RED:
         free_sulphur, total_sulphur = get_data(DataSet.RED, standardise=False)
     elif dataset == DataSet.WHITE:
@@ -470,31 +479,73 @@ if __name__ == "__main__":
         GPType.STANDARD,
         KernelType.FAVARD,
     )
-    favard_predictive_densities, mercer_predictive_densities = compare_gps(
-        favard_gp,
-        mercer_gp,
-        total_sulphur,
-        free_sulphur,
-        empirical_experiment_count,
-        test_random_sample_point_count,
-        input_random_sample_point_count,
-        # random_sample_point_count,
-    )
+    if not precompared:
+        favard_predictive_densities, mercer_predictive_densities = compare_gps(
+            favard_gp,
+            mercer_gp,
+            total_sulphur,
+            free_sulphur,
+            empirical_experiment_count,
+            test_random_sample_point_count,
+            input_random_sample_point_count,
+            # random_sample_point_count,
+        )
+    fig, ax = plt.subplots()
     if dataset == DataSet.RED:
-        pickle.dump(favard_predictive_densities, open("red_wine_pd.p", "wb"))
-        pickle.dump(
-            mercer_predictive_densities,
-            open("red_wine_mercer_pd.p", "wb"),
-        )
+        if not precompared:
+            torch.save(
+                torch.Tensor([favard_predictive_densities])
+                - torch.Tensor([mercer_predictive_densities]),
+                "red_density_diffs.pt",
+            )
+        else:
+            density_diffs = torch.load("red_density_diffs.pt")
+        plt.hist(density_diffs.numpy().flatten(), bins=150)
+        # plt.show()
     elif dataset == DataSet.WHITE:
-        pickle.dump(favard_predictive_densities, open("white_wine_pd.p", "wb"))
-        pickle.dump(
-            mercer_predictive_densities,
-            open("white_wine_mercer_pd.p", "wb"),
-        )
+        if not precompared:
+            torch.save(
+                torch.Tensor([favard_predictive_densities])
+                - torch.Tensor([mercer_predictive_densities]),
+                "white_density_diffs.pt",
+            )
+        else:
+            density_diffs = torch.load("white_density_diffs.pt")
+        plt.hist(density_diffs.numpy().flatten(), bins=150)
+        # plt.show()
     elif dataset == DataSet.BOTH:
-        pickle.dump(favard_predictive_densities, open("total_wine_pd.p", "wb"))
-        pickle.dump(
-            mercer_predictive_densities,
-            open("total_wine_mercer_pd.p", "wb"),
+        if not precompared:
+            torch.save(
+                torch.Tensor([favard_predictive_densities])
+                - torch.Tensor([mercer_predictive_densities]),
+                "total_density_diffs.pt",
+            )
+        else:
+            density_diffs = torch.load("total_density_diffs.pt")
+        plt.hist(density_diffs.numpy().flatten(), bins=150)
+
+    plt.rcParams["text.usetex"] = True
+    # plt.rcParams["figure.figsize"] = (6, 4)
+    ax.set_xlabel(r"$\densityfavard - \densitymercer$")
+    ax.set_ylabel(r"Counts ")
+    # ax.scatter(inputs, outputs, marker=marker_value, s=marker_size)
+    # plt.axvline(x=true_order, color="r", linestyle="--", linewidth=0.5)
+    # ax.legend(
+    # (
+    # "Ground Truth",
+    # "Re(Posterior sample)",
+    # # "Im(Posterior sample)",
+    # "Posterior mean",
+    # )
+    # # fontsize="x-small",
+    # )
+    if save_tikz:
+        tikzplotlib.save(
+            "/home/william/phd/tex_projects/favard_kernels_neurips/diagrams/wine_dataset_{}.tex".format(
+                dataset_name
+            ),
+            axis_height="\\winedatasetdiagramheight",
+            axis_width="\\winedatasetdiagramwidth",
         )
+    else:
+        plt.show()
