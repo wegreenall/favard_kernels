@@ -2,6 +2,12 @@
 
 The data and experiment code can be found in `datasets/wine_quality` and `datasets/formula1`.
 
+This library is provided as a companion to our "Favard Kernels" paper.
+
+# Installation
+To install, clone the repository, and ensure that the location you install 
+`favard_kernels` is in your PYTHONPATH environment variable. 
+
 # Dependencies
 The current library depends on `mercergp` our sparse Gaussian process library, 
 and `ortho`, our orthogonal polynomials manipulation library. Links to these 
