@@ -59,7 +59,9 @@ Construct the input/output samples
 """
 sample_size = 400
 sample_shape = torch.Size([sample_size])
-noise_sample = D.Normal(0.0, true_noise_parameter).sample(sample_shape).squeeze()
+noise_sample = (
+    D.Normal(0.0, true_noise_parameter).sample(sample_shape).squeeze()
+)
 mean_vector = torch.Tensor([-0.0, 3.0])
 variance_vector = torch.Tensor([1.0, 1.0])
 core_dist = D.Normal(mean_vector, variance_vector)

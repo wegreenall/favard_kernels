@@ -14,8 +14,6 @@ weights of the edges along the path.
 The moments of the corresponding linear functional are the values of the nodes
 in the first column  in the graph, constructed by adding all weights of the
 paths leading from node (0,0) into the given node.
-
-
 """
 
 
