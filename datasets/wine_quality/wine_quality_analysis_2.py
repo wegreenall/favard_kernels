@@ -86,7 +86,9 @@ def present_gp(
     return
 
 
-def get_data(type: DataSet, standardise=True):
+def get_data(
+    type: DataSet, standardise=True
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Returns the data for the wine quality analysis.
     """
@@ -195,16 +197,18 @@ def get_GP(
     Returns a GP model.
     """
     trained_parameters["noise_parameter"] = trained_noise
+    smooth_exponential_eigenvalues = SmoothExponentialFasshauer(order)
     if kernel_type == KernelType.MERCER:
+        basis = bf.Basis(
+            bf.smooth_exponential_basis_fasshauer, 1, order, trained_parameters
+        )
         if gp_type == GPType.STANDARD:
-            gp = build_smooth_exponential_mercer_gp_fourier_posterior(
+            print("Getting Mercer GP")
+            gp = build_mercer_gp(
                 trained_parameters,
                 order,
-                dim=1,
-                begin=-25,
-                end=25,
-                frequency=5,
-                rff_order=4000,
+                basis,
+                smooth_exponential_eigenvalues,
             )
         elif gp_type == GPType.FOURIER:
             gp = build_smooth_exponential_mercer_gp_fourier_posterior(
@@ -224,10 +228,6 @@ def get_GP(
             .set_weight_function(weight_function)
             .get_orthonormal_basis()
         )
-        smooth_exponential_eigenvalues = SmoothExponentialFasshauer(order)
-        # (
-        # trained_parameters
-        # )
         if gp_type == GPType.STANDARD:
             gp = build_mercer_gp(
                 trained_parameters,
@@ -349,12 +349,14 @@ def compare_gps(
 
 
 if __name__ == "__main__":
+    print("Starting the program")
     # get the data
-    do_hists = False
-    pretrained = True
+    do_hists = True
+    pretrained = False
     precompared = True
-    save_tikz = True
+    save_tikz = False
     empirical_experiment_count = 1000
+
     # random_sample_point_count = 50
     dataset = DataSet.BOTH
     if dataset == DataSet.BOTH:
@@ -491,11 +493,34 @@ if __name__ == "__main__":
             # random_sample_point_count,
         )
     fig, ax = plt.subplots()
+    print(
+        "Mean mercer predictive density:",
+        torch.mean(torch.Tensor(mercer_predictive_densities)),
+    )
+    print(
+        "Mean favard predictive density:",
+        torch.mean(torch.Tensor(favard_predictive_densities)),
+    )
+    density_percentage_increase = torch.exp(
+        torch.Tensor([favard_predictive_densities])
+        - torch.Tensor([mercer_predictive_densities])
+    )
+    print(
+        "Mean density percentage increase:",
+        torch.mean(density_percentage_increase),
+    )
+    print(
+        "Median density percentage increase:",
+        torch.median(density_percentage_increase),
+    )
+    breakpoint()
     if dataset == DataSet.RED:
         if not precompared:
+            density_diffs = torch.Tensor(
+                [favard_predictive_densities]
+            ) - torch.Tensor([mercer_predictive_densities])
             torch.save(
-                torch.Tensor([favard_predictive_densities])
-                - torch.Tensor([mercer_predictive_densities]),
+                density_diffs,
                 "red_density_diffs.pt",
             )
         else:
@@ -504,9 +529,11 @@ if __name__ == "__main__":
         # plt.show()
     elif dataset == DataSet.WHITE:
         if not precompared:
+            density_diffs = torch.Tensor(
+                [favard_predictive_densities]
+            ) - torch.Tensor([mercer_predictive_densities])
             torch.save(
-                torch.Tensor([favard_predictive_densities])
-                - torch.Tensor([mercer_predictive_densities]),
+                density_diffs,
                 "white_density_diffs.pt",
             )
         else:
@@ -515,31 +542,42 @@ if __name__ == "__main__":
         # plt.show()
     elif dataset == DataSet.BOTH:
         if not precompared:
+            density_percentage_increase = (
+                favard_predictive_densities - mercer_predictive_densities
+            ) / mercer_predictive_densities
+            density_diffs = torch.Tensor(
+                [favard_predictive_densities]
+            ) - torch.Tensor([mercer_predictive_densities])
             torch.save(
-                torch.Tensor([favard_predictive_densities])
-                - torch.Tensor([mercer_predictive_densities]),
+                density_diffs,
                 "total_density_diffs.pt",
             )
         else:
             density_diffs = torch.load("total_density_diffs.pt")
         plt.hist(density_diffs.numpy().flatten(), bins=150)
 
+        # plt.rcParams["text.usetex"] = True
+        # plt.rcParams["figure.figsize"] = (6, 4)
+        # ax.set_xlabel(r"$\densityfavard - \densitymercer$")
+        # ax.set_xlabel(r"$\densityfavard - \densitymercer$")
+        # ax.set_ylabel(r"Counts ")
+        # ax.scatter(inputs, outputs, marker=marker_value, s=marker_size)
+        # plt.axvline(x=true_order, color="r", linestyle="--", linewidth=0.5)
+        # ax.legend(
+        # (
+        # "Ground Truth",
+        # "Re(Posterior sample)",
+        # # "Im(Posterior sample)",
+        # "Posterior mean",
+        # )
+        # # fontsize="x-small",
+        # )
     plt.rcParams["text.usetex"] = True
-    # plt.rcParams["figure.figsize"] = (6, 4)
-    ax.set_xlabel(r"$\densityfavard - \densitymercer$")
-    ax.set_ylabel(r"Counts ")
-    # ax.scatter(inputs, outputs, marker=marker_value, s=marker_size)
-    # plt.axvline(x=true_order, color="r", linestyle="--", linewidth=0.5)
-    # ax.legend(
-    # (
-    # "Ground Truth",
-    # "Re(Posterior sample)",
-    # # "Im(Posterior sample)",
-    # "Posterior mean",
-    # )
-    # # fontsize="x-small",
-    # )
     if save_tikz:
+        # plt.rcParams["figure.figsize"] = (6, 4)
+        # ax.set_xlabel(r"$\densityfavard - \densitymercer$")
+        ax.set_xlabel(r"$\densityfavard - \densitymercer$")
+        ax.set_ylabel(r"Counts ")
         tikzplotlib.save(
             "/home/william/phd/tex_projects/favard_kernels_neurips/diagrams/wine_dataset_{}.tex".format(
                 dataset_name
@@ -548,4 +586,7 @@ if __name__ == "__main__":
             axis_width="\\winedatasetdiagramwidth",
         )
     else:
+        ax.set_xlabel(r"favard - mercer")
+        ax.set_ylabel(r"Counts ")
+
         plt.show()
